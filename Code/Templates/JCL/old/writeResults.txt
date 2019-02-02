@@ -1,0 +1,80 @@
+
+method void MyWriteResults(string path, tsopt.Results results,
+    tsopt.TradeType type, tsopt.ResultsRange range)
+vars:
+    elsystem.io.StreamWriter file,
+    int paramCount,
+    int param,
+    int metricID,
+    int index,
+    double metric,
+    string s,
+    string delim;
+begin
+    file = elsystem.io.StreamWriter.Create(path);
+    delim = ",";
+    // Write the column headings for the report
+    // First, write the optimized parameter headings
+    paramCount = results.OptParamCount;
+    for param = 0 to paramCount - 1 begin
+    if param > 0 then // If past the first column
+       file.Write(delim); // write a delimiter
+       file.Write(results.GetOptParamHeading(param));
+    end;
+    // Next, write the heading for the test number
+    file.Write(delim);
+    file.Write("Test");
+
+    // Finally, write a heading for each strategy metric
+    for metricID = 0 to tsopt.MetricID.MetricCount - 1 begin
+       file.Write(delim);
+       file.Write(tsopt.Results.GetMetricHeading(metricID, type));
+    end;
+    file.WriteLine(); // End the headings line
+   // Now iterate through the tests and write the results
+    for index = 0 to results.TestCount - 1 begin
+       // First, write the optimized parameter values for this test
+       for param = 0 to paramCount - 1 begin
+          if param > 0 then // If past the first column
+             file.Write(delim); // write a delimiter
+          file.Write(CSV_Field(results.GetOptValueString(param, index)));
+       end;
+
+       // Next, write the test number for this test
+       file.Write(delim);
+       file.Write(results.GetTestNum(index));
+
+       // Finally, write the value for each strategy metric
+       for metricID = 0 to tsopt.MetricID.MetricCount - 1 begin
+          metric = results.GetMetric(metricID, index, type, range);
+          s = NumToStr(metric, 7); // format with 7 decimals
+          file.Write(delim);
+          file.Write(s);
+       end;
+
+       file.WriteLine(); // End this line of test results
+    end;
+end;
+
+method string CSV_Field(string s)
+begin
+    if InStr(s, ",") = 0 and InStr(s, DoubleQuote) = 0 then
+       return s
+    else
+       return DoubleQuote + EscapeQuotes(s) + DoubleQuote;
+end;
+
+method string EscapeQuotes(string s)
+vars:
+    string outStr,
+    int j;
+begin
+    outStr = "";
+    j = InStr(s, DoubleQuote);
+    while j <> 0 begin
+       outStr += LeftStr(s, j) + DoubleQuote;
+       s = MidStr(s, j + 1, 999999);
+       j = InStr(s, DoubleQuote);
+    end;
+    return outStr + s;
+end;

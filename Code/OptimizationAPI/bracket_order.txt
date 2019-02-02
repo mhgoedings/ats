@@ -1,0 +1,38 @@
+inputs:   
+	NumShares( 100 ), 
+	 
+	FastPrice( Close ), 
+	SlowPrice( Low ), 
+	 
+	StopLossAmt( 1.25 ),   //  $1.25 per share stop loss 
+	ProfitTgtAmt( 0.25 ),  //  $0.25 per share profit target 
+	 
+	FastLen( 10 ), 
+	SlowLen( 20 ) ; 
+	 
+variables: 
+	FastAvg( 0 ), 
+	SlowAvg( 0 ) ; 
+	 
+	 
+// Calculate the Fast and Slow moving averages each bar 
+FastAvg = Average( FastPrice, FastLen ) ; 
+SlowAvg = Average( SlowPrice, SlowLen ) ; 
+ 
+// If the FastAvg crosses over the SlowAvg then enter the market on the next bar (at open of next bar). 
+// Crossing over means that the prior bar the FastAvg was less than or equal to the SlowAvg while 
+// on this bar the FastAvg is greater than the SlowAvg.  Crossing under means the opposite. 
+if FastAvg crosses over SlowAvg then 
+	Buy NumShares shares next bar at market ; 
+	 
+ 
+//  Use the built-in stops to bracket the entry.  This work whether the entry is long or short. 
+//  Set the stops to be on a dollar basis per share or per contract. 
+ 
+//  Issue the built-in stoploss and profittarget commands each bar so that these stops are always 
+//  in place, else Strategy Automation will cancel them on the next bar after they are not issued. 
+//  Strategy Automation will only issue exit orders when there is an active position. 
+SetStopShare ; 
+SetStopLoss( StopLossAmt ) ; 
+SetProfitTarget( ProfitTgtAmt ) ; 
+`

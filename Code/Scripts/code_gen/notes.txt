@@ -1,0 +1,28 @@
+# UVOL - DVOL Market Internals Exit
+# 
+# Significantly stronger volume on the short side in the whole exchange
+# is a strong sign that it is not smart to stay in a  long position
+# (so you should, at least, tighten up your stop-loss).
+
+# Exit Condition
+if the (Close of DVOL - Close of UVOL) > 160000 and Bars Since Entry > 1 then
+   Exit Long positions
+Stop Loss: 1500
+if the day is Friday then
+   Exit at the end of the day
+
+# Entry
+if time > 105 minutes afte sesssion open and time < 240 minutes after session open
+and Not already in a trade
+and No trades entered today
+then Enter next bar on Buy Stop at the currents Days Low +
+     ((EMA(High,20) - EMA(Low,20)) * 1.6)
+
+# Chart setup
+data1: @EMD.D  10yrs, 15min
+data2: $UVOL   10yrs, 15min
+data3: $DVOL   10yrs, 15min
+
+################################################################################
+
+

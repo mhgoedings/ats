@@ -1,0 +1,48 @@
+{ jinja2 generated code }
+{% block head %}
+{% endblock %}
+
+{% block chart_setup %}
+{% endblock %}
+
+Inputs:
+{% block inputs %}
+{% endblock %}
+
+Vars:
+{% block param_vars %}
+{% endblock %}
+
+Vars: 
+{% block vars %}
+{% endblock %}
+
+{% block by_date_params %}
+{% endblock %}
+
+{% block entry %}
+{% endblock %}
+
+{% block filter_1 %}
+{% endblock %}
+
+{% block filter_2 %}
+{% endblock %}
+  
+{% block time_filter %}
+{% endblock %}
+ 
+{% block execution %}
+{% endblock %}
+
+
+{***** STOP-LOSS & EXITS *****}
+ 
+{ StopLoss } 
+If SL_switch = 1 then setstoploss (SL); 
+ 
+{ Profit-target - for SWING strategies only } 
+If PT_switch = 1 then setprofittarget (PT);
+ 
+{ End of Day (EOD) exit (for daytrading strategies only)}
+If DaytradingORswing = 0 then setexitonclose;

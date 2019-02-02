@@ -1,0 +1,32 @@
+pip install jupyterlab
+
+pip install ipython-sql
+
+jupyter labextension install jupyterlab-drawio
+
+jupyter labextension install @jupyterlab/toc
+
+conda install -c conda-forge ipywidgets
+
+
+
+
+########## Windows
+
+https://www.anaconda.com/download/
+
+conda create -n <env name>
+
+conda install nb_conda
+
+setx DB_HEROKU "postgres://hiikokjjrwmqpg:ff6d83e0795990ffb048d526caf295eaad7a45476691991f989be513d4e3a6bb@ec2-54-83-60-13.compute-1.amazonaws.com:5432/d617hc9tos6o76"
+
+# check with: echo %DB_HEROKU%
+
+
+# windows architecture
+import platform
+platform.architecture()
+
+SETX PATH "%PATH%;C:\Users\Administrator\Anaconda3\Scripts;C:\Users\Administrator\Anaconda3"
+

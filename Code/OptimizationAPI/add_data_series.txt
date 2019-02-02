@@ -1,0 +1,27 @@
+method tsopt.Job DefineJob()      
+variables:      
+	tsopt.Job job,      
+	tsopt.Security security,   
+	tsopt.Strategy strategy;     
+begin      
+     
+	job = new tsopt.Job;     
+	 
+	// Security 1 (Data1) 
+	security = job.Securities.AddSecurity();    
+	security.Symbol = "AAPL"; 
+	security.Interval.SetMinuteChart(60);    
+	security.History.SetYearsBack(2);    
+	 
+	// Security 2 (Data2)  
+	security = job.Securities.AddSecurity();    
+	security.Symbol = "$VIX.X"; 
+	security.Interval.SetDailyChart(); 
+	security.History.SetYearsBack(2); 
+  
+	strategy = job.Strategies.AddStrategy( "STRATEGY_THAT_USES_DATA2" );     
+	strategy.ELInputs.OptRange( "Length", 10, 50, 1 );     
+  
+	return job; 
+  
+end;  

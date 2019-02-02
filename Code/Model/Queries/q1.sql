@@ -1,0 +1,1 @@
+echo "select proto_id,symbol,session_id sess,timeframe_1 tf1, timeframe_2 tf2, status,status_state state, count(*)  from candidates group by proto_id,symbol,sess,tf1,tf2,status,state order by proto_id;" | psql $DB_HEROKU

@@ -1,0 +1,69 @@
+#    from datetime import datetime
+#
+#    data_set = 1
+#    data_block = 10
+
+import math
+import pandas as pd
+import sys
+
+sys.path.append("/Users/szagar/ZTS/Dropbox/Business/ats/Code/lib")
+from ats_tools import hhmm2mins, mins2hhmm, add2hhmm
+
+
+def set_dates(sess_st, sess_end, bars_back, data_set, data_block, time_frames):
+    tf = int(time_frames[0])
+    number_segments = 10
+    data_sets = []
+    data_sets.append([1, "1/1/08", "1/1/18"])
+    data_sets.append([2, "1/1/08", "7/1/18"])
+    data_sets.append([3, "7/1/08", "7/1/18"])
+    df = pd.DataFrame(data_sets, columns=["data_set", "start_dt", "end_dt"])
+    df.set_index("data_set", inplace=True)
+    df["start_dt"] = pd.to_datetime(df["start_dt"])
+    df["end_dt"] = pd.to_datetime(df["end_dt"])
+
+    use_daily = False
+    bars_back = 200
+    if "1440" in time_frames:
+        use_daily = True
+    if "D" in time_frames:
+        use_daily = True
+    if not use_daily:
+        bars_per_session = hhmm2mins(sess_end) - hhmm2mins(sess_st) / tf
+        print(f"bars_per_session={bars_per_session}")
+        bars_back = math.ceil(200 / bars_per_session)
+
+    print(f"bars_back={bars_back}")
+    seg_size = int(
+        (df.loc[data_set]["end_dt"] - df.loc[data_set]["start_dt"]).days
+        / number_segments
+    )
+    start_dt = df.loc[data_set]["start_dt"] + pd.DateOffset((data_block - 1) * seg_size)
+    pre_start_dt = start_dt - pd.DateOffset(round((bars_back / 5) * 7))
+    end_dt = start_dt + pd.DateOffset(seg_size)
+    # print(f'seg_size :{seg_size}')
+    # print(f'offset   :{(data_block-1)*seg_size}')
+    # print(f'pre_start: {pre_start_dt}')
+    # print(f'start_dt : {start_dt}')
+    # print(f'end_dt   : {end_dt}')
+    return {
+        "pre_start_dt": pre_start_dt,
+        "start_dt": start_dt,
+        "end_dt": end_dt,
+        "bt_start_dt": df.loc[data_set]["start_dt"],
+        "bt_end_dt": df.loc[data_set]["end_dt"],
+    }
+
+
+time_frames = ["15"]
+bars_back = 200
+sess_st = 800
+sess_end = 1600
+data_set = 1
+data_block = 8
+r = set_dates(sess_st, sess_end, bars_back, data_set, data_block, time_frames)
+print(r)
+time_frames = ["15", "1440"]
+r = set_dates(sess_st, sess_end, bars_back, data_set, data_block, time_frames)
+print(r)

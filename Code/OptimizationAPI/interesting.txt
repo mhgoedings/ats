@@ -1,0 +1,108 @@
+method tsopt.Job DefineJob() 
+vars: 
+	tsopt.Job job, 
+	tsopt.Security security, 
+	tsopt.Interval myInterval, 
+	tsopt.Strategy strategy, 
+	tsopt.optList myList, 
+	tsopt.OptRange myRange, 
+	tsopt.OutSample outSamp, 
+	tsopt.ELInput myInput, 
+	TokenList values, 
+	Datetime dt, 
+	Vector vec, 
+	Int k; 
+begin 
+	clearprintlog; 
+	job = new tsopt.Job; 
+	security = job.Securities.AddSecurity(); 
+	security.Symbol = "IBM"; 
+	security.History.SetYearsBack( 2 ); 
+	security.Interval.SetMinuteChart( 15 ); 
+	myInterval = security.OptInterval.AddInterval(); 
+	job.Strategies.AddStrategy( "bollinger Bands le" ); 
+	job.Strategies.AddStrategy( "Bollinger Bands SE", true ); 
+	strategy = job.Strategies[ 0 ];							// input names are case sensitive 
+	strategy.ELInputs.OptRange( "Length", 10, 30, 10 ); 
+	strategy.ELInputs.OptRange( "NumDevsDn", 1, 3, 0.5 ); 
+	strategy = job.Strategies[ 1 ]; 
+	strategy.ELInputs.OptRange( "Length", 10, 30, 10 ); 
+	strategy.ELInputs.OptRange( "NumDevsUp", 1, 3, 0.5 ); 
+	job.Settings.ResultOptions.SetFitnessMetric( tsopt.MetricID.NetProfit ); 
+	job.Settings.ResultOptions.SetFitnessTradeType( tsopt.TradeType.AllTrades ); 
+	job.Settings.ResultOptions.SetKeepType( tsopt.KeepType.highest ); 
+	job.Settings.ResultOptions.SetNumTestsToKeep( 600 ); 
+	outSamp = job.Settings.OutSample; 
+	outSamp.ExcludeDates( DateTime.Parse( "01/04/2015 09:30" ), DateTime.Parse( "30/04/2015 09:30" ) ); 
+	job.Settings.ResultOptions.Keeptype = tsopt.KeepType.Highest; 
+	job.Settings.ResultOptions.NumTestsToKeep = 300; 
+	return job; 
+	end; 
+ 
+method void StartOptimization() 
+vars: 
+	int k, 
+	int64 ID, 
+	tsopt.Job job; 
+begin 
+	myJob = DefineJob(); 
+	optimizer = new tsopt.Optimizer; 
+	optimizer.JobDone += OptDone; 
+//	optimizer.JobFailed += OptError; 
+	optimizer.ProgressChanged += OptProgress; 
+	ID = optimizer.StartJob( myJob ); 
+	end; 
+	 
+method void OptProgress( Object sender, tsopt.ProgressChangedEventArgs args ) 
+begin 
+	Print( "Test ", args.Progress.TestNum.ToString(), " of ", args.Progress.TestCount.ToString() ); 
+	Print( " ", args.BestValues.FitnessName, " = ", args.BestValues.FitnessValue.ToString() ); 
+	print( args.Progress.ElapsedTime:0:0, " secs elapsed" ); 
+	end; 
+	 
+method void OptDone( object sender, tsopt.JobDoneEventArgs args ) 
+vars: 
+	tsopt.Results results, 
+	Vector vec, 
+	string temp, 
+	string name, 
+	int p, 
+	Int k; 
+begin 
+	Print( "Net Profit = ", args.Results.NetProfit(), " results.TestCount = ", args.results.TestCount:0:0 ); 
+	If myJob = Null then print( " myJob = Null" ) else print( "myJob <> Null" ); 
+	If myJob.Strategies = Null then print( " myJob.Strategies = Null" ) else print( "myJob.Strategies <> Null" ); 
+	print( myJob.Strategies.Count:0:0 ); 
+	If myJob.Strategies[0].ELInputs = Null then print( " myJob.Strategies[0].ELInputs = Null" ) else print( "myJob.Strategies[0].ELInputs <> Null" );	 
+	print( myJob.Strategies[ 0 ].ELInputs.Count:0:0, " ", myJob.Strategies[ 1 ].ELInputs.Count:0:0 ); 
+	For k = 0 to myJob.Strategies[ 0 ].ELInputs.Count - 1 begin 
+		print( myJob.Strategies[ 0 ].ELInputs.ELInput[k].Name, " = ", doublequote, myJob.Strategies[ 0 ].ELInputs[k].Value, doublequote ); 
+		end; 
+	print(); 
+	For k = 0 to myJob.Strategies[ 1 ].ELInputs.Count - 1 begin 
+		print( myJob.Strategies[ 1 ].ELInputs[k].Name, " = ", doublequote, myJob.Strategies[ 1 ].ELInputs[k].Value, doublequote ); 
+		end; 
+	results = args.Results; 
+	For k = 0 to results.OptParamCount - 1 begin 
+		print( "Param ", k:0:0, " is ", results.GetOptParamHeading( k ) ); 
+		end; 
+	results.sortByMetric( tsopt.MetricID.NetProfit, tsopt.TradeType.allTrades, tsopt.resultsRange.all, False ); 
+	For k = 0 to results.TestCount - 1 begin 
+		print( results.GetTestNum( k ):0:0, " ",  
+			results.GetTestSymbol( k, 1 ), " ", {results.GetTestSymbol( k, 2 ), " ",}  
+			" LE Length = ", results.GetTestInputDouble( k, "Length", "Bollinger Bands LE" ):0:0, " ",  
+			results.GetTestInputDouble( k, "NumDevsDn", "Bollinger Bands LE" ):0:1, " ",  
+			" SE Length = ", results.GetTestInputDouble( k, "Length", "Bollinger Bands SE" ):0:0, " ",  
+			results.GetTestInputDouble( k, "NumDevsUp", "Bollinger Bands SE" ):0:1 , " ", 
+			results.GetTestInterval( k, 1 ).Describe(), " ", {results.GetTestInterval( k, 2 ).Describe()} 
+			results.NetProfit( k, tsopt.TradeType.allTrades, tsopt.resultsRange.all ):0:2{,  
+			" W:R ", results.WinLossRatio( k, tsopt.TradeType.allTrades, tsopt.resultsRange.all ):0:3, 
+			" W ", results.WinningTrades( k, tsopt.TradeType.allTrades, tsopt.resultsRange.all ):0:0,  
+			" L ", results.LosingTrades( k, tsopt.TradeType.allTrades, tsopt.resultsRange.all ):0:0, 
+			" AW ", results.AvgWinningTrade( k, tsopt.TradeType.allTrades, tsopt.resultsRange.all ):0:5,  
+			" AL ", results.AvgLosingTrade( k, tsopt.TradeType.allTrades, tsopt.resultsRange.all ):0:5, 
+			" ABW ", results.AvgBarsInWinner( k, tsopt.TradeType.allTrades, tsopt.resultsRange.all ):0:5,  
+			" ABL ", results.AvgBarsInLoser( k, tsopt.TradeType.allTrades, tsopt.resultsRange.all ):0:5} ); 
+		end; 
+	results.WriteFile( "E:\aardvark.txt", "	", tsopt.tradeType.AllTrades, tsopt.resultsRange.all ); 
+	end;

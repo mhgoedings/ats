@@ -1,0 +1,10 @@
+{% extends "prototype_b4" %}
+{% block version %}{{self._TemplateReference__context.name}}{% endblock %}
+{% block heading %}
+  {{ super() }}
+{% endblock %}
+{% block meta %}
+{% endblock %}
+  {% block OptimizationMethod -%}.SetOptimizationMethod(tsopt.OptimizationMethod.Exhaustive){% endblock -%}
+    {% block GeneticOptions -%}
+    {% endblock %}

@@ -1,0 +1,24 @@
+Factors:  risk & volatility
+
+* Risk 0.8% - 2.0%
+* ongoing position sizing
+   * peel off contracts/shares as exposure increases
+* Near Stops
+   * small R -> high shares -> huge capital requirement
+   * keep stop, position size in terms of volatility
+   * position size = min(position_risk/$risk, position_risk/atr)
+* Market's Money
+   * equity earned from the market
+   * risk higher percentage of market money than for starting equity
+   i.e., risk 1% of starting equity % 5% of market money
+   * annually or quarterly - market money -> my money
+* William Eckhardr's turtles
+   * risk/position: initial = 2%;  max = 4%
+   * equity risked: 24% optimal
+   * max 6 positions
+   * add one contract/lot everytime profit increases by ATR
+* Objectives
+   * highest median gain
+   * maximize probability of an x% gain
+   * minimize probability of 'ruin' ( y% drawdown)
+   * maximize difference between probability of reaching goal and probability of ruin

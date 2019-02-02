@@ -1,0 +1,93 @@
+// 1.  Twisted DOW  (larry williams)
+//      - exclude worst day(s) of the week
+//      - 1. analyze:   Input:  DOW(1)   // optimize 1-5,1 
+//                      ....
+//                      and dayofweek(date) = DOW
+//           review: All: Net Profit, All: Total Trades, All: % Profitable,
+//                   All: Avg Trade, All: Max Intraday Drawdown, All: ProfitFactor,
+//                   All: TS Index & equity curve 
+//      - 2. implement ...  and dayofweek(date) <> 4  // exclude Thursday
+//      - 3. confirm impact
+//                   - equity curve
+//                   - Before / After / Change
+//                        Met Profit, Profit Factor, Avg Trade, Number of trades
+//                        Win %, MaxDD(C-to-C), NP/DD Ratio
+//           note: NP: OOS net profit
+//                 DD: max(OOS DD, IS DD) 
+
+// 2.  Dynamic Twisted DOW
+//      - counter-balance approach, add to strong side as well as reduce weakest
+//           point(DOW)
+//      - exclude worst day(s) of the week
+//      - position size according to DOW, the best DOWs get larger size
+//      - 1.  analyze: as in Twisted DOW
+//      - 2.  assess results, set the size distribution
+//                 - Mon:  above average - 2 contracts
+//                 - Tue:  above average - 2 contracts
+//                 - Wed:  average - 1 contract
+//                 - Thu:  weakest - exclude
+//                 - Fri:  average - 1 contract
+//      - 3.  implement
+//              if dayofweek(date) = 1 then buy 2 contracts next bar myBreakoutLong stop;
+//              if dayofweek(date) = 2 then buy 2 contracts next bar myBreakoutLong stop;
+//              if dayofweek(date) = 3 then buy 1 contract next bar myBreakoutLong stop;
+//              if dayofweek(date) = 5 then buy 1 contract next bar myBreakoutLong stop;
+//
+//              setstopcontract;   // stop loss for each contract individually
+//      - 4.  confirm impact
+ 
+// 3.  Higher picture deployment
+//      - add higher timeframe condition
+//      - 1st approach: use daily filters
+//         * Close </> CloseD(1)
+//         * Close </> OpenD(1)
+//         * Close </> OpenD(0)
+//         * CloseD(1) </> OpenD(1)
+//         * CloseD(1) </> OpenD(0)
+//         * OpenD(0) </> OpenD(1)
+//      - i.e., and Close < OpenD(1)
+//      - implement: 
+//            if Close < OpenD(1) then buy 2 contracts next bar myBreakoutLong sotp;
+//            if marketposition = 0 then begin
+//               buy 1 contract next bar myBreakoutLong sotp;
+//      - i.e., Filter2_Long = close of data(2) < OpenD(0);
+//              Filter2_Short = close of data(2) > OpenD(0);
+//      - 2nd approach:  use a breakout filter on cwa higher timeframe (daily)
+//              either move filter to higher timeframe or keep trading timeframe
+//              and add higher timeframe filter
+//      - i.e., and ADX(30) < 20
+//      - implement:
+//              add 2nd timeframe
+//              reference data2
+
+// 4.  HOD/LOD timing
+
+
+// 5.  T-Segment timing
+
+
+// 6.  Trade order and entry bar quality filtering
+
+
+// 7.  Volatility bins
+
+
+// 8.  Dynamic Volatility Bins
+
+
+// 9.  Adaptive Volatility Bins
+
+
+// 10.  Market Quality Switch
+
+
+// 11.  Advanced Management Hack
+
+
+// 12.  Redirection
+
+
+// 13.  ADR Technique
+
+
+// 14.  Multi-market breakout validation

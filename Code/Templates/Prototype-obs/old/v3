@@ -1,0 +1,9 @@
+{% extends "b1.txt" %}
+{% block version %}{{self._TemplateReference__context.name}}{% endblock %}
+{% block heading %}
+  {{ super() }}
+{% endblock %}
+{% block meta %}
+{{ comments['chart_setup'] }}
+{{ comments['prototype_info'] }}
+{% endblock %}

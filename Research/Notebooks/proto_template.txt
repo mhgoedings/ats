@@ -1,0 +1,91 @@
+{ jinja2 generated code v0.1 }
+{% block header %}
+{{ header }}
+{% endblock %}
+
+{
+{{ comments['chart_setup'] }}
+{{ comments['prototype_info'] }}
+}
+
+Inputs:
+{% block inputs %}
+{% for i,dict2 in inputs.items() %}
+  {{ dict2.dtype }} {{ i }}({{ dict2.baseVal }}),
+{% endfor %}
+{% endblock %}
+
+Vars:
+{% block param_vars %}
+  {% for i,dict2 in varz.items() %}
+    {{ dict2.dtype }} {{ i }}({{ dict2.baseVal }}),
+  {% endfor %}
+{% endblock %}
+
+Vars: 
+{% block vars %}
+{% endblock %}
+
+{% block by_date_params %}
+{% endblock %}
+
+{ ************x********************* 
+  POI 
+  ********************************* }
+{% block poi %}
+  {{ poi }}
+{% endblock %}
+
+{ ************x********************* 
+  Distance (fract) 
+  ********************************* }
+{% block fract %}
+  {{ fract }}
+{% endblock %}
+
+{ ************x********************* 
+  Filter 1 logic 
+  ********************************* }
+{% block filter_1 %}
+  {% for i in filter_1 %}
+    {{ i }},
+  {% endfor %}
+{% endblock %}
+
+{ ********************************* 
+  Filter 2 logic 
+  ********************************* }
+{% block filter_2 %}
+{% endblock %}
+  
+{ ********************************* 
+  Time Segment 
+  ********************************* }
+{% block time_filter %}
+{% endblock %}
+
+{% block execution %}
+{***** EXECUTION *****}
+//Protection that both LONG and SHORT stop orders placed at the same time 
+diff1 = absvalue(close - BO_Level_LONG);
+diff2 = absvalue(close - BO_Level_SHORT);
+//always pick only one entry, the closer one to the actual market
+if (diff1 <= diff2) then FinalEntryDirection = 1 else FinalEntryDirection = -1;
+{% endblock %}
+   
+{Executes LONG entries} 
+if (MarketPosition = 0 or time = SessionEndTime(0, 1)) 
+  and Filter1_Long = true 
+  and FinalEntryDirection > 0 
+  and TimeFiltr = true
+  and EntriesToday(Date) < TradesPerDay and (L_S_B = 1 or L_S_B = 3) then
+    buy next bar at BO_Level_LONG stop; 
+ 
+{Executes SHORT entries} 
+if (MarketPosition = 0 or time = SessionEndTime(0, 1)) 
+  and Filter1_Short = true 
+  and FinalEntryDirection < 0
+  and TimeFiltr = true
+  and EntriesToday(Date) < TradesPerDay and (L_S_B = 2 or L_S_B = 3) then
+    sellshort next bar at BO_Level_SHORT stop; 
+

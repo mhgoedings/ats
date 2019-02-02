@@ -1,0 +1,7 @@
+{% extends "jcl_b2" %}
+{% block version %}{{self._TemplateReference__context.name}}{% endblock %}
+{% block heading %}
+  {{ super() }}
+{% endblock %}
+{% block meta %}
+{% endblock %}

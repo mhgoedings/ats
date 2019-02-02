@@ -1,0 +1,54 @@
+## setup
+Just add "compare_type=True" to context.configure() parameters inside your env.py's "run_migrations_online" function.
+
+    context.configure(
+                connection=connection,
+                target_metadata=target_metadata,
+                compare_type=True
+                )
+                
+                
+                
+alembic init --template generic alembic
+
+alembic revision -m "Create first migration"
+
+alembic upgrade head  ## initial migration
+
+alembic revision -m "Add a column"
+
+alembic revision --autogenerate -m "Added performance results to oos_tests"
+alembic upgrade head
+
+# rollback to previos version
+alembic downgrade -1
+
+
+truncate table oos_tests restart identity;
+truncate table pois restart identity;
+
+# Fix sequence number
+begin;
+lock table prototype_parameters in exclusive mode;
+select setval('prototype_parameters_id_seq', COALESCE((select max(id)+1 from prototype_parameters), 1), false);
+commit;
+
+begin;
+lock table prototypes in exclusive mode;
+select setval('prototypes_id_seq', COALESCE((select max(id)+1 from prototypes), 1), false);
+commit;
+
+begin;
+lock table candidate_parameters in exclusive mode;
+select setval('candidate_parameters_id_seq', COALESCE((select max(id)+1 from candidate_parameters), 1), false);
+commit;
+
+begin;
+lock table candidate_settings in exclusive mode;
+select setval('candidate_settings_id_seq', COALESCE((select max(id)+1 from candidate_settings), 1), false);
+commit;
+
+begin;
+lock table candidates in exclusive mode;
+select setval('candidates_id_seq', COALESCE((select max(id)+1 from candidates), 1), false);
+commit;

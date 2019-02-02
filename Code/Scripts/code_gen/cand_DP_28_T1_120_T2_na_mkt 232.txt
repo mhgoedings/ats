@@ -1,0 +1,114 @@
+{
+Name: C:\ZTS\GeneratedCandidates\13_08_2018 23_53_49\cand_DP_28_T1_120_T2_na_mkt 232.txt
+DP round file: c:\ZTS\DP_in_sample\DP_28_is.txt
+Net Profit: 12320
+Total Trades: 92
+AVG Trade Insample/OOS: 133.42 / 136.92
+Max Intraday Drawdown  Insample/OOS: -2520 / -1150
+ProfitFactor  Insample/OOS : 2.29 / 1.88
+NP:DD ratio: 4.89
+User comments: 
+		DP_1TF_120m_sess7
+DP: 28
+Timeframe 1: 120
+}
+{ 
+Design & Prototype BOS code v1.6.1, May 2018
+}
+
+Inputs:
+	int NATR(60),	//5-60 STEP 5
+	double Fract(0.75),	//0.6 - 3 STEP 0.1 or 0.15 (or use F-SEGMENT concept)
+	int Filter1_N1(4),	//1-20 step 1
+	int Filter1_N2(5),	//1-20 step 1
+	int SL_switch(0),	//0 = NO stop-loss, 1 = stop-loss used
+	int SL(1000),	//use only if SL_switch = 1
+	int PT_switch(0),	//0 = NO profit-target, 1 = profit-target used
+	int PT(1000);	//use only if PT_switch = 1
+
+
+
+Vars:
+	int sess_start(900),	//beginning time of the trading session     900
+	int sess_end(1430),	//ending time of the trading session          1600
+	int TradesPerDay(1),	//maximum allowed trades per day (start with 1 only, recommended no more than 3)
+	int DaytradingORswing(0),	//0=DAYTRADING strategy (EOD exit), 1=SWING strategy
+	int L_S_B(3);	//1=LONG strategies only, 2=SHORT strategies only, 3=LONG and SHORT strategies
+
+vars: 
+double POI_Long(0), double POI_Short(0),
+double BO_Level_LONG(0), double BO_Level_SHORT(0),
+bool Filter1_Long(false), bool Filter1_Short(false),
+int CumMA_count(0), double CumMA(0), myData(1),
+double diff1(0), double diff2(0),
+int FinalEntryDirection(0), bool TimeFiltr(false);
+
+{***** PART I: BREAKOUT LEVEL CALCULATION (as POI +/- DISTANCE) *****}
+
+{1. POINT OF INITIATION DEFINITION}
+
+//switch condition POI_Switch=7
+       POI_Long = maxList( CloseD(1), LowD(0) ); 
+       POI_Short = minList( CloseD(1), HighD(0) );
+
+{ 2. ADDING DISTANCE AS VOLATILITY MULTIPLICATION AND CALCULATING THE FINAL BREAKOUT LEVEL }  
+BO_level_LONG = POI_Long + (Fract * AvgTrueRange(NATR) ); 
+BO_Level_SHORT = POI_Short - (Fract * AvgTrueRange(NATR) ); 
+
+
+{***** PART II: FILTERS *****}
+  
+{ Filter for the MAIN timeframe (0 = No Filter) }
+
+//switch condition Filter1_Switch=1
+    Filter1_Long = AvgTrueRange(3 * Filter1_N1) > AvgTrueRange(5 * Filter1_N2) ; 
+    Filter1_Short = AvgTrueRange(3 * Filter1_N1) > AvgTrueRange(5 * Filter1_N2) ;
+
+{ TIME FILTER calculation - T-Segmentation calculation }
+
+//calculate the length of the session in minutes
+Value1 = timetominutes(sess_start); Value2 = timetominutes(sess_end); Value3 = value2 - value1;
+
+//calculate the leght of a T-Segment in minutes
+Value4 = value3/3;
+
+//Calculate the appropriate T-Segment time range
+
+//switch condition Tsegment=0
+TimeFiltr = True;
+
+{***** PART III: EXECUTION *****}
+ 
+//Protection that there are never both LONG and SHORT stop orders placed at the same time 
+diff1 = absvalue(close - BO_Level_LONG);
+diff2 = absvalue(close - BO_Level_SHORT);
+//always pick only one entry, the closer one to the actual market
+if (diff1 <= diff2) then FinalEntryDirection = 1 else FinalEntryDirection = -1;
+   
+{Executes LONG entries} 
+if (MarketPosition = 0 or time = SessionEndTime(0, 1)) 
+  and Filter1_Long = true 
+  and FinalEntryDirection > 0 
+  and TimeFiltr = true
+  and EntriesToday(Date) < TradesPerDay and (L_S_B = 1 or L_S_B = 3) then
+    buy next bar at BO_Level_LONG stop; 
+ 
+{Executes SHORT entries} 
+if (MarketPosition = 0 or time = SessionEndTime(0, 1)) 
+  and Filter1_Short = true 
+  and FinalEntryDirection < 0
+  and TimeFiltr = true
+  and EntriesToday(Date) < TradesPerDay and (L_S_B = 2 or L_S_B = 3) then
+    sellshort next bar at BO_Level_SHORT stop; 
+
+
+{***** PART IV: STOP-LOSS & EXITS *****}
+ 
+{ StopLoss } 
+If SL_switch = 1 then setstoploss (SL); 
+ 
+{ Profit-target - for SWING strategies only } 
+If PT_switch = 1 then setprofittarget (PT);
+ 
+{ End of Day (EOD) exit (for daytrading strategies only)}
+If DaytradingORswing = 0 then setexitonclose;

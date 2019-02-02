@@ -1,0 +1,144 @@
+import sys, os, re
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+sys.path.append("/Users/szagar/ZTS/Dropbox/Business/ats/Code/Model/v3")
+sys.path.append("/Users/szagar/ZTS/Dropbox/Business/ats/Code/lib")
+
+#from oos_test import OosTest
+##from strategy import Strategy
+from candidate_config import CandidateConfig
+#from prototype import Prototype
+from proto_config import ProtoConfig
+from prototype_parameter import PrototypeParameter
+from entry_filter import EntryFilter
+from poi import Poi
+from market import Market
+from session import Session as TradeSession
+from base import Base, Session
+
+
+def connectDB():
+    db = Session()
+    db_url = os.environ["DB_HEROKU"]
+
+    engine = create_engine(db_url)
+    Base.metadata.bind = engine
+
+    DBSession = sessionmaker(bind=engine)
+    session = DBSession()
+    session.autoflush = True
+    return session
+
+
+def nextPrototypeId(dbh):
+    return (
+        dbh.query(ProtoConfig)
+        .filter(ProtoConfig.id > 0)
+        .order_by(ProtoConfig.id)
+        .all()[0]
+        .id
+    )
+
+def nextCandidateId(dbh):
+    return (
+        dbh.query(CandidateConfig)
+        .filter(CandidateConfig.id > 0)
+        .order_by(CandidateConfig.id)
+        .all()[0]
+        .id
+    )
+
+
+def queryPrototype(dbh, id):
+    return dbh.query(ProtoConfig).filter(ProtoConfig.id == id).one_or_none()
+
+
+def queryPrototypeParams(dbh, id):
+    return dbh.query(PrototypeParameter).filter(PrototypeParameter.proto_id == id).all()
+
+
+def queryEntryFilter(dbh, id):
+    return dbh.query(EntryFilter).filter(EntryFilter.id == id).one_or_none()
+
+
+def queryPoi(dbh, id):
+    return dbh.query(Poi).filter(Poi.id == id).one_or_none()
+
+
+def querySession(dbh, id):
+    return dbh.query(TradeSession).filter(TradeSession.id == id).one_or_none()
+
+
+def queryDefaultSessionId(dbh, symbol):
+    return (
+        dbh.query(Market)
+        .filter(Market.ts_symbol == symbol)
+        .one_or_none()
+        .default_session
+    )
+
+
+def querySecId(dbh, symbol):
+    return dbh.query(Market).filter(Market.ts_symbol == symbol).one_or_none().id
+
+
+def queryCaDone(dbh):
+    return dbh.query(Strategy).filter(
+        Strategy.status == "CA",
+        Strategy.status_state == "done",
+        Strategy.robust_level > 1,
+    )
+
+
+def queryCosts(dbh, symbol):
+    data = dbh.query(Market).filter(Market.ts_symbol == symbol).one_or_none()
+    comm = data.comm_entry_dol + data.comm_exit_dol
+    slip = data.slippage_entry_tick * data.value_1_tick
+    slip += data.slippage_exit_tick * data.value_1_tick
+    return slip, comm
+
+
+def queryXactCosts(dbh, symbol=None, sec_id=None):
+    if not symbol and not sec_id:
+        raise
+    if not sec_id:
+        data = dbh.query(Market).filter(Market.ts_symbol == symbol).one_or_none()
+    else:
+        data = dbh.query(Market).filter(Market.id == sec_id).one_or_none()
+
+    if data is None:
+        return (0, 0, 0, 0)
+
+    comm_entry_dol = (
+        float(data.comm_entry_dol) if is_float(data.comm_entry_dol) else None
+    )
+    comm_exit_dol = float(data.comm_exit_dol) if is_float(data.comm_exit_dol) else None
+    slippage_entry_dol = (
+        float(data.slippage_entry_tick * data.value_1_tick)
+        if is_float(data.slippage_entry_tick) and is_float(data.value_1_tick)
+        else None
+    )
+    slippage_exit_dol = (
+        float(data.slippage_exit_tick * data.value_1_tick)
+        if is_float(data.slippage_exit_tick) and is_float(data.value_1_tick)
+        else None
+    )
+
+    return (comm_entry_dol, comm_exit_dol, slippage_entry_dol, slippage_exit_dol)
+
+
+if __name__ == "__main__":
+
+    import pprint
+
+    dbh = connectDB()
+    print(querySession(dbh, 8).session_start)
+    print(querySession(dbh, 8).session_end)
+
+    print(queryDefaultSessionId(dbh, "@ES.D"))
+    print(queryDefaultSessionId(dbh, "@CL"))
+
+    print(querySecId(dbh, "@ES.D"))
+    print(querySecId(dbh, "@CL"))

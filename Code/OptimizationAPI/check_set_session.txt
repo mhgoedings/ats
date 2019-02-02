@@ -1,0 +1,30 @@
+var: j_SessionName(""); 
+ 
+If j_SessionName.trim() <> "" then begin 
+  If SessionExists( j_SessionName ) then print("===============> Session exists") 
+  Else                                   print("===============> Session DOES NOT exists"); 
+end; 
+ 
+ 
+method Bool SessionExists(string sessionName) 
+vars: 
+  Streamreader reader,  
+  bool fileExists, 
+  string sessionFile;  
+ 
+Begin 
+ 
+   sessionFile = elsystem.Environment.GetFolderPath( elsystem.SpecialFolder.MySessions) + sessionName + ".cst"; 
+   print("---> S E S S I O N   F I L E: : ", sessionFile); 
+ 
+Try  
+   reader = StreamReader.Create( sessionFile );   
+   reader.close(); 
+   fileExists = true; 
+Catch ( Exception ex )   
+   fileExists = false; 
+   end; 
+Return fileExists; 
+end; 
+ 
+

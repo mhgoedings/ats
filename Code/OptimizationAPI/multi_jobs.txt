@@ -1,0 +1,278 @@
+using elsystem;     
+using elsystem.collections; 
+using elsystem.windows.forms;      
+using elsystem.drawing;     
+using tsdata.common;  
+ 
+input: 
+	iSymbol("MSFT"), 
+	int iMinuteInterval(5), 
+	int iDaysBack(90); 
+	  
+variables:      
+	Form form1(null),     
+	Button StartButton(null),     
+	tsopt.Optimizer Optimizer(null), 
+	Vector Jobs(null), 
+	Dictionary JobIDs(null), 
+	intrabarpersist IsOptimizing(false),  
+	Color StartColor(null),  
+	Color CancelColor(null);  
+  
+constants:  
+	StartText("Start Optimizations"),  
+	CancelText("Stop Optimizations");  
+	  
+// Handle clicking of StartButton  
+method void OnStartButtonClick(elsystem.Object sender, elsystem.EventArgs args)      
+begin   
+  
+	// If not currently optimizng, begin optimization  
+	if IsOptimizing = false then  
+	begin  
+		StartButton.Enabled = false;  
+		StartOptimizations();  
+		IsOptimizing = true;  
+		StartButton.BackColor = CancelColor;  
+		StartButton.Text = CancelText;  
+		StartButton.Enabled = true;      
+	end  
+	else // Cancel optimization  
+	begin  
+		IsOptimizing = false;  
+		StartButton.BackColor = StartColor;  
+		StartButton.Text = CancelText;      
+		if Optimizer <> null then  
+		begin  
+			Optimizer.CancelAllJobs(); 
+		end;  
+	end;    
+  
+end;     
+    
+// Define main optimization jobs     
+    
+method Vector DefineJobs()      
+variables:      
+	tsopt.Job Job, 
+	Vector JobsVec,  
+	tsopt.Security Security, 
+	tsopt.Strategy Strategy;     
+begin 
+ 
+	JobsVec = Vector.Create(); 
+ 
+	// Job 1 
+     
+	Job = new tsopt.Job;     
+	 
+	Security = Job.Securities.AddSecurity();    
+	Security.Interval.SetMinuteChart(iMinuteInterval);  
+ 	Security.SetSymbol(iSymbol); 
+  
+	security.History.DaysBack = iDaysBack;     
+  
+	Strategy = job.Strategies.AddStrategy( "Bollinger Bands LE" );     
+	Strategy.ELInputs.OptRange( "NumDevsDn", 1, 3, 0.1 );     
+  
+	Strategy = job.Strategies.AddStrategy( "Bollinger Bands SE" );     
+	Strategy.ELInputs.OptRange( "NumDevsUp", 1, 3, 0.1 );     
+  
+ 	JobsVec.push_back(Job); 
+ 	 
+	// Job 2 
+     
+	Job = new tsopt.Job;     
+	 
+	Security = Job.Securities.AddSecurity();    
+	Security.Interval.SetMinuteChart(iMinuteInterval );  
+ 	Security.SetSymbol(iSymbol); 
+  
+	security.History.DaysBack = iDaysBack;     
+  
+	Strategy = job.Strategies.AddStrategy( "MACD LE" );     
+	Strategy.ELInputs.OptRange( "FastLength", 5, 20, 1 );     
+  
+	Strategy = job.Strategies.AddStrategy( "MACD SE" );     
+	Strategy.ELInputs.OptRange( "FastLength", 5, 20, 1 );     
+  
+ 	JobsVec.push_back(Job); 
+ 
+	return JobsVec; 
+ 
+end; 
+  
+method void StartOptimizations()      
+variables:      
+	tsopt.Job Job,  
+	string StartingText, 
+	int64 JobID;     
+ begin 
+  
+ 	Jobs = DefineJobs(); 
+ 	JobIDs = Dictionary.Create(); 
+  
+ 	ClearPrintLog;     
+  
+ 	StartingText = "====================================================" + NewLine;  
+ 	StartingText += "Starting Optimizations" + NewLine;  
+ 	StartingText += "====================================================";  
+ 
+	Print(StartingText);  
+  
+  	Optimizer = new tsopt.Optimizer;     
+	Optimizer.JobDone += OptDone;     
+	Optimizer.JobFailed += OptError;     
+	Optimizer.ProgressChanged += OptProgress;     
+  
+ 	for Value1 = 0 to Jobs.Count - 1 
+ 	begin 
+ 		Job = Jobs[Value1] astype tsopt.Job; 
+		JobID = Optimizer.StartJob(Job);   
+ 		JobIDs[JobID.ToString()] = Job; 
+ 	end; 
+     
+end;     
+     
+method void OptProgress(Object sender, tsopt.ProgressChangedEventArgs args)    
+variables:  
+	string ProgressText;  
+begin  
+  
+	if args.Progress.WaitingForData then  
+	begin  
+		ProgressText = NewLine + "Requesting historical symbol data...";  
+	end  
+	else  
+	begin  
+	 
+   		ProgressText = elsystem.elString.Format( "{0}----- Test {1} of {2} -----{3}{4} {5}",  
+   		 NewLine,  
+   	 	 args.Progress.TestNum,   
+   	 	 args.Progress.TestCount,  
+   	 	 NewLine,  
+   	 	 args.BestValues.FitnessName,  
+   	 	 args.BestValues.FitnessValue );  
+   	 	  
+		for Value1 = 0 to args.BestValues.OptParamCount-1  
+		begin  
+			ProgressText += NewLine   
+		 	 + args.BestValues.GetOptParamName(Value1)   
+		 	 + ": "   
+		 	 + args.BestValues.GetOptParamValue(Value1);  
+    	end;  
+  
+	end;  
+	  
+	Print(ProgressText);  
+  
+end;  
+  
+method void OptDone(object sender, tsopt.JobDoneEventArgs args)  
+variables: 
+	tsopt.Job Job, 
+	int64 JobID, 
+	string ResultText; 
+begin  
+ 
+	JobID = args.JobID;      
+	if JobIDs.contains( JobID.ToString() ) then 
+	begin 
+		Job = JobIDs[JobID.ToString()] astype tsopt.Job; 
+	end; 
+	 
+     
+   	if IsOptimizing then  
+   	begin  
+   	  
+		ResultText = NewLine;  
+		ResultText += "====================================================" + NewLine;  
+ 		ResultText += "Optimization Done" + NewLine;  
+ 		ResultText += "====================================================" + NewLine; 
+ 		ResultText += "Strategies: "; 
+ 		for Value1 = 0 to Job.Strategies.Count - 1 
+ 		begin 
+ 			ResultText += Job.Strategies[Value1].Name; 
+ 			if Value1 <> Job.Strategies.Count - 1 then 
+ 				ResultText += ", "; 
+ 		end; 
+ 		ResultText += NewLine;  
+		ResultText += "Net Profit: " + NumToStr(args.Results.NetProfit(), 2) + NewLine;     
+	   	ResultText += "Interval: " + args.Results.GetTestInterval(0).Describe() + NewLine;     
+  
+		for Value1 = 0 to args.Results.OptParamCount-1  
+		begin  
+		  
+			ResultText += elsystem.elString.Format("{0}: {1}{2}",  
+			 args.Results.GetOptParamHeading(Value1),  
+			 args.Results.GetOptValueString(Value1, 0),  
+			 NewLine);  
+  
+    	end;  
+  
+	end	  
+	else  
+	begin  
+	  
+		ResultText = NewLine;  
+		ResultText += "====================================================" + NewLine;  
+ 		ResultText += "Optimization Aborted By User" + NewLine;  
+ 		ResultText += "====================================================" + NewLine;  
+  
+	end;  
+	 
+	Jobs.Erase(0); 
+	 
+	if Jobs.Count = 0 then 
+	begin 
+		IsOptimizing = false;  
+   		StartButton.BackColor = StartColor;  
+		StartButton.Text = StartText;   
+	end; 
+	 
+	ResultText += NewLine;  
+	  
+	Print(ResultText);  
+	  
+end;     
+      
+method void OptError(Object sender, tsopt.JobFailedEventArgs args)  
+variables:  
+	string TextToPrint;  
+begin   
+  
+	TextToPrint = NewLine;  
+	TextToPrint += "====================================================" + NewLine;  
+ 	TextToPrint += "Optimization Error: " + args.Error.Message + NewLine;  
+ 	TextToPrint += "====================================================" + NewLine;  
+   
+ 	IsOptimizing = false;  
+   	StartButton.BackColor = StartColor;  
+	StartButton.Text = StartText;   
+ 
+	Print(TextToPrint);  
+	  
+end;     
+     
+// Initialize TradingApp Form and Start Button     
+once     
+begin  
+     
+	form1 = Form.Create( "Optimization API", 500, 500 );      
+	form1.BackColor = Color.DarkGray;      
+	form1.Dock = DockStyle.Fill;  
+	  
+	StartColor = Color.FromArgb( 40, 0, 255, 0 );  
+	CancelColor = Color.FromArgb( 40, 255, 0, 0 );   
+	     
+	StartButton = Button.Create( StartText, 120, 30 );     
+	StartButton.BackColor = StartColor;    
+	StartButton.Location( 20, 20 );      
+	StartButton.Click += OnStartButtonClick;      
+	     
+	form1.AddControl(StartButton);     
+		     
+	form1.Show();     
+	 
+end; 
+

@@ -1,0 +1,298 @@
+{% block heading %}
+{ 
+jinja2 generated code
+Template Version: {% block version %}{% endblock %}
+{% block meta -%}
+{% endblock -%}
+}
+{% endblock -%}
+
+using elsystem; 
+using elsystem.windows.forms; 
+using elsystem.drawing; 
+using elsystem.collections; 
+{% block includes %} {% endblock -%}
+
+variables: 
+    Form form1(null), 
+    Button StartButton(null), 
+    GroupBox SymbolGroupBox(null), 
+    Label PBarLabel(null), 
+    TextBox SymbolToOptimizeTextBox(null),
+    ProgressBar PBar(null), 
+    {% block variables %} {% endblock -%}
+
+    tsopt.Optimizer optimizer(null); 
+ 
+method void OnStartButtonClick(elsystem.Object sender, elsystem.EventArgs args) 
+begin 
+    {% block start_optimization %} {% endblock %}
+    StartOptimization(); 
+    PBar.Focus(); 
+end; 
+ 
+ 
+method tsopt.Job DefineJob() 
+vars: 
+    {% block define_job_vars %} {% endblock %}
+    tsopt.Job job;
+begin 
+	job = new tsopt.Job; 
+
+job
+  .SetOptimizationMethod(tsopt.OptimizationMethod.Genetic)
+  .Securities
+    {% block tree_Securities %}
+    .AddSecurity()
+      {% block tree_AddSecurity %}
+      .SetSymbol("@CL")
+      .Interval
+        .SetMinuteChart(60)
+      .EndInterval
+      .History
+        .SetFirstDate("12/30/2015")
+        .SetLastDate("12/29/2016")
+      .EndHistory
+      .SecurityOptions
+        .SetSessionName("session 7")
+      .EndSecurityOptions
+      {% endblock -%}
+    .EndSecurity
+    {% endblock -%}
+  .EndSecurities
+  .Strategies
+    {% block tree_Strategies %}
+    .AddStrategy("{{ setup.strategy_name }}")
+      {% block AddStrategy %}
+      .ELInputs
+        .OptRange("natr", 5, 60, 5)
+        .OptList("poi")
+            .AddValue(1) 
+            .AddValue(3)
+            .AddValue(5)
+            .AddValue(7)
+        .EndOptList
+        .SetInput("poi_n1", -1)
+        .OptRange("filter_1",1,40,1)
+        .OptList("filter_2")
+            .AddValue(29)
+            .AddValue(32)
+        .EndOptList
+        .OptRange("filter_1_n1", 1, 20, 1)
+        .OptRange("filter_1_n2", 1, 20, 1)
+        .OptRange("fract", 0.6, 3.0, 0.15)
+        .OptRange("lsb", 1, 3, 1)
+        .OptRange("time_segment", 0,3,1)
+        .OptRange("stop_loss", 500, 2500, 500)
+      .EndELInputs
+      {% endblock %}
+    .EndStrategy
+    {% endblock -%}
+  .EndStrategies
+  .SetOptimizationMethod(tsopt.OptimizationMethod.Genetic)
+  .Settings
+    .OutSample
+      .SetLastPercent({{setup.oosPercentLast}})
+    .EndOutSample
+    .GeneralOptions
+	  .SetMaxBarsBack({{setup.maxBarsBack}})
+    .EndGeneralOptions
+    .GeneticOptions
+      .SetPopulationSize(500)
+      .SetGenerations(50)
+    .EndGeneticOptions
+    .ResultOptions
+      .SetFitnessMetric(tsopt.MetricID.TSIndex)
+      .SetKeepType(tsopt.KeepType.Highest)
+      .SetNumTestsToKeep(5000)
+    .EndResultOptions
+  .EndSettings
+.UseDefinition(); 
+{% block define_job_tree %} {% endblock %}
+
+return(job);
+end; 
+ 
+method void StartOptimization() 
+vars: 
+    tsopt.Job job; 
+begin 
+    ClearPrintLog; 
+    Print("Starting optimization..."); 
+    job = DefineJob();   
+    job.WriteXML("c:\job.xml");
+    Print("Opt Settings: ", job.ToString());
+    optimizer = new tsopt.Optimizer; 
+    optimizer.JobDone += OptDone; 
+    optimizer.JobFailed += OptError; 
+    optimizer.ProgressChanged += OptProgress; 
+    PBar.Value = 0; // Reset progress bar value to 0% 
+    optimizer.StartJob(job); 
+end; 
+ 
+method void OptProgress(Object sender, tsopt.ProgressChangedEventArgs args) 
+vars: 
+    int pct; 
+begin 
+    // Calculate current progress bar percentage 
+    if args.Progress.TestCount <> 0 then 
+        pct = Round((args.Progress.TestNum / args.Progress.TestCount) * 100, 0) astype int;	 
+    PBar.Value = pct; 
+ 
+    Print("Test ", args.Progress.TestNum.ToString(), " of ",
+          args.Progress.TestCount.ToString()); 
+    Print(" ", args.BestValues.FitnessName, " = ",
+          args.BestValues.FitnessValue.ToString()); 
+end; 
+ 
+method void OptDone( object sender, tsopt.JobDoneEventArgs args )
+vars:
+    tsopt.Results results,
+    Vector vec,
+    string temp,
+    string name,
+    int p,
+    Int k;
+begin
+    PBar.Value = 100; // Set progress bar to 100% 
+    Print("Optimization done"); 
+    Print( "Net Profit = ", args.Results.NetProfit(), " results.TestCount = ", args.results.TestCount:0:0 );
+    results = args.Results;
+    For k = 0 to results.OptParamCount - 1 begin
+        print( "Param ", k:0:0, " is ", results.GetOptParamHeading( k ) );
+    end;
+    results.sortByMetric( tsopt.MetricID.NetProfit, tsopt.TradeType.allTrades, tsopt.resultsRange.all, False );
+
+    Print("In Sample Results: c:\{{in_sample_file}}");
+    results.WriteFile( "c:\{{in_sample_file}}", "	", tsopt.tradeType.AllTrades, tsopt.resultsRange.InSample );
+    Print("Out Of Sample Results: c:\{{out_of_sample_file}}");
+    results.WriteFile( "c:\{{out_of_sample_file}}", "	", tsopt.tradeType.AllTrades, tsopt.resultsRange.OutSample );
+end;
+
+method void MyWriteResults(string path, tsopt.Results results, tsopt.TradeType type, tsopt.ResultsRange range)
+vars:
+    elsystem.io.StreamWriter file,
+    int paramCount,
+    int param,
+    int metricID,
+    int index,
+    double metric,
+    string s,
+    string delim;
+begin
+    file = elsystem.io.StreamWriter.Create(path);
+    delim = ",";
+    // Write the column headings for the report
+    // First, write the optimized parameter headings
+    paramCount = results.OptParamCount;
+    for param = 0 to paramCount - 1 begin
+        if param > 0 then // If past the first column
+            file.Write(delim); // write a delimiter
+        file.Write(results.GetOptParamHeading(param));
+    end;
+    // Next, write the heading for the test number
+    file.Write(delim);
+    file.Write("Test");
+
+    // Finally, write a heading for each strategy metric
+    for metricID = 0 to tsopt.MetricID.MetricCount - 1 begin
+        file.Write(delim);
+        file.Write(tsopt.Results.GetMetricHeading(metricID, type));
+    end;
+    file.WriteLine(); // End the headings line
+    // Now iterate through the tests and write the results
+    for index = 0 to results.TestCount - 1 begin
+        // First, write the optimized parameter values for this test
+        for param = 0 to paramCount - 1 begin
+            if param > 0 then // If past the first column
+                file.Write(delim); // write a delimiter
+            file.Write(CSV_Field(results.GetOptValueString(param, index)));
+        end;
+
+        // Next, write the test number for this test
+        file.Write(delim);
+        file.Write(results.GetTestNum(index));
+
+        // Finally, write the value for each strategy metric
+        for metricID = 0 to tsopt.MetricID.MetricCount - 1 begin
+            metric = results.GetMetric(metricID, index, type, range);
+            s = NumToStr(metric, 7); // format with 7 decimals
+            file.Write(delim);
+            file.Write(s);
+        end;
+
+        file.WriteLine(); // End this line of test results
+    end;
+end;
+
+method string CSV_Field(string s)
+begin
+ if InStr(s, ",") = 0 and InStr(s, DoubleQuote) = 0 then
+ return s
+ else
+ return DoubleQuote + EscapeQuotes(s) + DoubleQuote;
+end;
+
+method string EscapeQuotes(string s)
+vars:
+ string outStr,
+ int j;
+begin
+ outStr = "";
+ j = InStr(s, DoubleQuote);
+ while j <> 0 begin
+ outStr += LeftStr(s, j) + DoubleQuote;
+ s = MidStr(s, j + 1, 999999);
+ j = InStr(s, DoubleQuote);
+ end;
+ return outStr + s;
+end;
+
+
+
+method void OptError(Object sender, tsopt.JobFailedEventArgs args) 
+begin 
+    PBar.Value = 100; // Set progress bar to 100% 
+    Print("Optimization Error: ", args.Error.Message); 
+end; 
+ 
+once 
+begin 
+    form1 = Form.Create("OptTest", 500, 500); 
+    form1.BackColor = Color.LightGray; 
+    startButton = Button.Create("Start Optimization", 152, 30); 
+    startButton.Location(5, 60); 
+    startButton.BackColor = Color.LightGreen; 
+    startButton.Click += OnStartButtonClick; 
+    form1.AddControl(StartButton); 
+ 
+    // Create GroupBox and add to form 
+    SymbolGroupBox = GroupBox.Create(150,50); 
+    SymbolGroupBox.Location(5, 5); 
+    SymbolGroupBox.BackColor = Color.LightGray; 
+    SymbolGroupBox.Text = "Symbol To Optimize"; 
+    form1.AddControl(SymbolGroupBox); 
+ 
+    // Create TextBox and add to GroupBox 
+    SymbolToOptimizeTextBox = TextBox.Create("MSFT", 100, 20); 
+    SymbolToOptimizeTextBox.BackColor = Color.White; 
+    SymbolToOptimizeTextBox.ForeColor = Color.Black; 
+    SymbolToOptimizeTextBox.Location(8, 20); 
+	 
+    SymbolGroupBox.Controls.Add( SymbolToOptimizeTextBox ); 
+ 
+    // Create progress bar label and add to form 
+    PBarLabel = Label.Create("Progress: ", 60, 24); 
+    PBarLabel.TextAlign = ContentAlignment.BottomRight; 
+    PBarLabel.BackColor = Color.LightGray; 
+    PBarLabel.Location(160, 60); 
+    form1.AddControl(PBarLabel); 
+	 
+    // Create progress bar and add to form 
+    PBar = ProgressBar.Create(150, 24); 
+    PBar.Location(225, 64); 
+    form1.AddControl(PBar); 
+	 
+    form1.Show(); 
+    SymbolToOptimizeTextBox.Focus(); 
+end; 

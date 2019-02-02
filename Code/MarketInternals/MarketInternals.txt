@@ -1,0 +1,116 @@
+﻿
+{
+MARKET INTERNALS MINI SMART CODE (version AUG 2016)
+***************************************************************************************************
+2016(c)Tomas Nesnidal / www.BetterTraderAcademy.com
+Copyrighted material. Sharing without author ́s approval is strictly prohibited and against the law.
+DATA 2: TICK
+DATA 3: UVOL
+DATA 4: DVOL
+***************************************************************************************************
+
+use:  IS/OOS  70/30
+performance reprot:  In-Sample, sort by TS Index
+}
+inputs:
+  MI_Switch(1),       // 1-9
+  MI_Parameter(5);    // 1-15
+
+vars:
+  modeLong(false),
+  modeShort(false),
+  myTickLOD(0), myTickHOD(0),
+  myDiff(0), myDiffAvg(0);
+
+switch (MI_Switch) begin
+
+  //MI CONDITION 1A: IS THE TICK DOING THE HIGHEST HIGH OR LOWEST LOW? -- VERSION A (high,low)
+  case 1 : begin 
+    if High of data2 = highest(high, MI_Parameter) of data2 then 
+      modeLong = true; modeShort = false;
+    if Low of data2 = lowest (low, MI_Parameter) of data2 then 
+      modeShort = true; modeLong = false;
+  end;
+
+  //MI CONDITION 1B: IS THE TICK DOING THE HIGHEST HIGH OR LOWEST LOW? -- VERSION B (close)
+  case 2 : begin
+    if High of data2 = highest(close, MI_Parameter) of data2 then
+      modeLong = true; modeShort = false;
+    if Low of data2 = lowest (close, MI_Parameter) of data2 then 
+      modeShort = true; modeLong = false;
+  end;
+
+  //MI CONDITION 2A: Absolute values of TICK - extremes  -- VERSION A (high,low)
+  case 3 : begin
+    modeLong =  High of data2 > 100 * MI_Parameter;
+    modeShort = Low of data2 < -100 * MI_Parameter;
+  end;
+
+  //MI CONDITION 2B: Absolute values of TICK - extremes -- VERSION B (close)
+  case 4 : begin
+    modeLong =  Close of data2 > 100 * MI_Parameter;
+    modeShort = Close of data2 < -100 * MI_Parameter;
+  end;
+
+  //MI CONDITION 3: Valid if new TICK highest high or lowest low for the day
+  case 5 : begin
+    // reset on the beginning of day (we are only interested in HH and LL of the actual
+    if Date <> date[1] then begin
+      myTickLOD = L of data2;
+      myTickHOD = H of data2;
+      modeLong = false; modeShort = false;
+    end;
+    // save new values of the HH and LL of tick for the actual day
+    if L of data2 < myTickLOD then myTickLOD = L of data2;
+    if H of data2 > myTickHOD then myTickHOD = H of data2;
+    // Market Internals condition valid if new TICK highest high or lowest low for the day
+    if myTICKhod > myTickHod[1] then
+      modeLONG = TRUE; modeShort = false;
+    if myTICKlod < myTickLod[1] then
+      modeShort = true; ModeLONG = false;
+  end;
+
+  // MI CONDITION 4: Bollinger Bands Application to TICK
+  case 6 : begin
+    if h of data2 > bollingerBand(c of data2, 5*MI_Parameter, 2) then 
+      modeLONG = true; modeShort = false;
+    if l of data2 < bollingerBand(c of data2, 5*MI_Parameter, -2) then
+      modeShort = true; modeLong = false;
+  end;
+
+  // MI CONDITION 5: Market Strenght by UVOL-DVOL difference
+  case 7 : begin
+    modeLong = Close of data3 - Close of data4 > ( 20000  * MI_Parameter );
+    modeShort = Close of data4 - Close of data3 > ( 20000  * MI_Parameter );
+  end;
+
+  // BONUS CONDITION -- MI CONDITION 6: UVOL-DVOL MOVING AVERAGE below/above UVOL-DVOL ZERO LINE
+  case 8 : begin
+    modeLong = Average( ( Close of data3 - Close of data4) , MI_Parameter * 5)  > 0;
+    modeShort = Average( ( Close of data3 - Close of data4) , MI_Parameter * 5)  < 0;
+  end;
+
+  // BONUS CONDITION -- MI CONDITION 15: UVOL-DVOL MOVING AVERAGE below/above UVOL-DVOL ZERO LINE && check diff	
+  case 9: begin
+    // data3: $UVOL
+    // data4: $DVOL
+    myDiff = Close of data3 - Close of data4;
+    myDiffAvg = average(myDiff, 10 * MI_Parameter);
+
+    if myDiff > 0 and myDiff > myDiffAvg and myDiffAvg > 0 then 
+      modeLong = True;
+    if myDiff < 0 and myDiff < myDiffAvg and myDiffAvg < 0 then 
+      modeLong = False;
+
+    // cancel MI condition
+    if modeLong = True and ((myDiff < 0) or (myDiffAvg < 0)) then
+      modeLong = False;
+  end;
+
+end;
+
+//*************************************************************************************************
+//INSERT YOUR OWN STRATEGY HERE
+//add modeLong condition for long trades and modeShort condition for short trades
+//************************************************************************************************
+

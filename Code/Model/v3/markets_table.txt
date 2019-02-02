@@ -1,0 +1,22 @@
+ symbol | ts_symbol | ts_status |   group_1    |       name       
+--------+-----------+-----------+--------------+------------------
+ @C     | @C        | verified  | Agricultures | Corn
+ @LH    | @LH       | verified  | Agricultures | Lean Hogs
+ @LC    | @LC       | verified  | Agricultures | Live Cattle
+ @BO    | @BO       | verified  | Agricultures | Soybean Oil
+ @S     | @S        | verified  | Agricultures | Soybeans
+ @W     | @W        | verified  | Agricultures | Wheat
+ @CL    | @CL       | verified  | Energies     | Crude Oil
+ @QM    | @QM       | verified  | Energies     | Emini Crude Oil
+ @HO    | @HO       | verified  | Energies     | Heating Oil
+ @NG    | @NG       | verified  | Energies     | Natural Gas
+ @RB    | @RB       | verified  | Energies     | RBOB Gasoline
+ @YM    | @YM.D     | verified  | Indices      | Emini Dow 30
+ @EMD   | @EMD.D    | verified  | Indices      | Emini MidCap 400
+ @NQ    | @NQ.D     | verified  | Indices      | Emini NASDAQ
+ @RTY   | @RTY.D    | verified  | Indices      | Emini Russell
+ @ES    | @ES.D     | verified  | Indices      | Emini S&P 500
+ @GC    | @GC       | verified  | Metals       | Gold
+ @SI    | @SI       | verified  | Metals       | Silver
+(18 rows)
+

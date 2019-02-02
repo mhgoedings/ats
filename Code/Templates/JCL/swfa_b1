@@ -1,0 +1,217 @@
+{% block heading %}
+{ 
+jinja2 generated code
+Template Version: {% block version %}{% endblock %}
+{% block meta -%}
+{% endblock -%}
+}
+{% endblock -%}
+
+using elsystem; 
+using elsystem.windows.forms; 
+using elsystem.drawing; 
+using elsystem.collections; 
+{% block includes %} {% endblock -%}
+
+variables: 
+    Form form1(null), 
+    Button StartButton(null), 
+    GroupBox SymbolGroupBox(null), 
+    Label PBarLabel(null), 
+    TextBox SymbolToOptimizeTextBox(null),
+    ProgressBar PBar(null), 
+    {% block variables %} {% endblock -%}
+
+    tsopt.Optimizer optimizer(null); 
+ 
+method void OnStartButtonClick(elsystem.Object sender, elsystem.EventArgs args) 
+begin 
+    {% block start_optimization %} {% endblock %}
+    StartOptimization(); 
+    PBar.Focus(); 
+end; 
+ 
+method tsopt.Job DefineJob() 
+vars: 
+    {% block define_job_vars %} {% endblock %}
+    tsopt.Job job;
+begin 
+	job = new tsopt.Job; 
+
+job
+  .SetOptimizationMethod(tsopt.OptimizationMethod.Exhaustive)
+  .Securities
+    {% block tree_Securities -%}
+    {% for sec in setup['data_series'] -%}
+    .AddSecurity()
+      .SetSymbol("{{sec.symbol}}")
+      .Interval
+        .SetMinuteChart({{sec.tf}})
+      .EndInterval
+      .History
+        .SetFirstDate("{{ setup.start_dt }}")
+        .SetLastDate(" {{ setup.end_dt }}")
+      .EndHistory
+      .SecurityOptions
+        .SetSessionName("{{ setup.session_name }}")
+      .EndSecurityOptions
+    .EndSecurity
+    {% endfor -%}
+  .EndSecurities
+  {% endblock -%}
+  .Strategies
+    {%- block tree_Strategies %}
+    .AddStrategy("{{ setup.strategy_name }}")
+      {%- block AddStrategy %}
+      .ELInputs
+        {% for name in setup['opt_inputs'].keys() -%}
+        {% set dict = setup['opt_inputs'][name] -%}
+        {% if dict.type == 'range' -%}
+        {% set params = dict.params.split(',') -%}
+        .OptRange("{{ name }}", {{ params[0] }}, {{ params[1] }}, {{ params[2] }})
+        {% endif -%}
+        {%- if dict.type == 'list' -%}
+        .OptList("{{ name }}")
+            {%- for v in dict.value %}
+            .AddValue({{ v }}) 
+            {%- endfor %}
+        .EndOptList
+        {% endif -%}
+        {% if dict.type == 'var' -%}
+        .SetInput("{{ name }}", {{ dict.value[0] }})
+        {% endif -%}
+        {% endfor -%}
+      .EndELInputs
+      {% endblock -%}
+    .EndStrategy
+    {% endblock -%}
+  .EndStrategies
+  .Settings
+    .OutSample
+      .SetLastPercent({{setup.oosPercentLast}})
+    .EndOutSample
+    .GeneralOptions
+        .SetMaxBarsBack({{setup.max_bars_back}})
+        .SetLookInsideBarEnabled( True )
+        .SetLookInsideBarResQty( 15 )
+        .SetLookInsideBarResUnit( tsopt.Compression.Minute )
+    .EndGeneralOptions
+    .TradeSize
+      .SetFixedShares(1)
+    .EndTradeSize
+    .PositionOptions
+      .SetMaxSharesPerPosition(65000)
+    .EndPositionOptions
+    .ResultOptions
+      .SetFitnessMetric(tsopt.MetricID.TSIndex)
+      .SetKeepType(tsopt.KeepType.Highest)
+      .SetNumTestsToKeep(8000)
+    .EndResultOptions
+    .WalkForward
+        .SetEnabled( True )
+        .SetTestName( "{{setup.walk_forward_file}}" )
+    .EndWalkForward
+
+
+  .EndSettings
+.UseDefinition(); 
+
+return(job);
+end; 
+ 
+method void StartOptimization() 
+vars: 
+    tsopt.Job job; 
+begin 
+    ClearPrintLog; 
+    Print("Starting optimization..."); 
+    job = DefineJob();   
+    job.WriteXML("c:\job.xml");
+    Print("Opt Settings: ", job.ToString());
+    optimizer = new tsopt.Optimizer; 
+    optimizer.JobDone += OptDone; 
+    optimizer.JobFailed += OptError; 
+    optimizer.ProgressChanged += OptProgress; 
+    PBar.Value = 0; // Reset progress bar value to 0% 
+    optimizer.StartJob(job); 
+end; 
+ 
+method void OptProgress(Object sender, tsopt.ProgressChangedEventArgs args) 
+vars: 
+    int pct; 
+begin 
+    // Calculate current progress bar percentage 
+    if args.Progress.TestCount <> 0 then 
+        pct = Round((args.Progress.TestNum / args.Progress.TestCount) * 100, 0) astype int;	 
+    PBar.Value = pct; 
+ 
+    Print("Test ", args.Progress.TestNum.ToString(), " of ",
+          args.Progress.TestCount.ToString()); 
+    Print(" ", args.BestValues.FitnessName, " = ",
+          args.BestValues.FitnessValue.ToString()); 
+end; 
+ 
+method void OptDone( object sender, tsopt.JobDoneEventArgs args )
+vars:
+    tsopt.Results results,
+    Vector vec,
+    string temp,
+    string name,
+    int p,
+    Int k;
+begin
+    PBar.Value = 100; // Set progress bar to 100% 
+    Print("Optimization done"); 
+    Print( "Net Profit = ", args.Results.NetProfit(), " results.TestCount = ", args.results.TestCount:0:0 );
+    results = args.Results;
+    For k = 0 to results.OptParamCount - 1 begin
+        print( "Param ", k:0:0, " is ", results.GetOptParamHeading( k ) );
+    end;
+end;
+
+method void OptError(Object sender, tsopt.JobFailedEventArgs args) 
+begin 
+    PBar.Value = 100; // Set progress bar to 100% 
+    Print("Optimization Error: ", args.Error.Message); 
+end; 
+ 
+once 
+begin 
+    form1 = Form.Create("OptTest", 500, 500); 
+    form1.BackColor = Color.LightGray; 
+    startButton = Button.Create("Start Optimization", 152, 30); 
+    startButton.Location(5, 60); 
+    startButton.BackColor = Color.LightGreen; 
+    startButton.Click += OnStartButtonClick; 
+    form1.AddControl(StartButton); 
+ 
+    // Create GroupBox and add to form 
+    SymbolGroupBox = GroupBox.Create(150,50); 
+    SymbolGroupBox.Location(5, 5); 
+    SymbolGroupBox.BackColor = Color.LightGray; 
+    SymbolGroupBox.Text = "Symbol To Optimize"; 
+    form1.AddControl(SymbolGroupBox); 
+ 
+    // Create TextBox and add to GroupBox 
+    SymbolToOptimizeTextBox = TextBox.Create("MSFT", 100, 20); 
+    SymbolToOptimizeTextBox.BackColor = Color.White; 
+    SymbolToOptimizeTextBox.ForeColor = Color.Black; 
+    SymbolToOptimizeTextBox.Location(8, 20); 
+	 
+    SymbolGroupBox.Controls.Add( SymbolToOptimizeTextBox ); 
+ 
+    // Create progress bar label and add to form 
+    PBarLabel = Label.Create("Progress: ", 60, 24); 
+    PBarLabel.TextAlign = ContentAlignment.BottomRight; 
+    PBarLabel.BackColor = Color.LightGray; 
+    PBarLabel.Location(160, 60); 
+    form1.AddControl(PBarLabel); 
+	 
+    // Create progress bar and add to form 
+    PBar = ProgressBar.Create(150, 24); 
+    PBar.Location(225, 64); 
+    form1.AddControl(PBar); 
+	 
+    form1.Show(); 
+    SymbolToOptimizeTextBox.Focus(); 
+end; 

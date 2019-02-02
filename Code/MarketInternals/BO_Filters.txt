@@ -1,0 +1,33 @@
+{
+BigPointValue:
+The dollar value represented by a full point of price movement.
+Stocks: $1
+S&P Futures: $250
+}
+
+
+input:
+  ADR_USD(0),    // condition 1
+
+vars:
+  
+
+// 1.  ADR condition
+bo_cond_1 = (HighD(0) - LowD(0)) * BigPointValue > ADR_USD;
+
+
+
+
+// ================= long breakout entry
+if marketposition = 0 and bo_cond_1
+then buy next bar stop_entry_price stop;
+
+// ================= short breakout entry
+
+
+// exit at end of day
+if marketposition <> 0 then setexitclose;
+
+// set stop-loss
+if SL_switch = 1 then
+  setstoploss(SL)

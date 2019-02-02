@@ -1,0 +1,157 @@
+{ jinja2 generated code v0.1 }
+{
+{% block head %} Strategy:
+{{ header }}
+{{ comments['chart_setup'] }}
+{{ comments['prototype_info'] }}
+} 
+{% endblock %}
+
+{% block inputs %}
+{% if setup['opt_inputs'] is defined and setup['opt_inputs']|length > 0 %} Inputs: {% endif -%}
+{% for k,dict2 in setup['opt_inputs'].items() %}
+    {{ dict2.dtype }} {{ k }}({{ dict2.value[0] }}){% if loop.index < setup['opt_inputs']|length %},{% else %};{% endif -%}
+{% endfor -%}
+{% endblock %}
+
+{% block param_vars %}
+Vars:
+    int sess_start({{ setup['sess_start'] }}),
+    int sess_end({{ setup['sess_end'] }}),
+    int timeframe(60),
+    int trades_per_day(1),
+    int day_or_swing(0),
+{% if setup['param_vars'] is defined and setup['param_vars']|length > 0 -%}
+{% for k,dict2 in setup['param_vars'].items() %}
+    {{ dict2.dtype }} {{ k }}({{ dict2.value }}),
+{% endfor -%}
+{% endif -%}
+{% endblock -%}
+{% block logic_vars -%}
+{% if setup['logic_vars'] is defined and setup['logic_vars']|length > 0 -%}
+{% for k,dict2 in setup['logic_vars'].items() -%}
+        {{ dict2.dtype }} {{ k }}({{ dict2.value }}){% if loop.index < setup['logic_vars']|length %},{% else %};{% endif -%}
+{% endfor -%}
+{% endif -%}
+{% endblock %}
+
+    double poi_long(0), double poi_short(0),
+    double bo_level_long(0), double bo_level_short(0),
+    bool filter1_long(false), bool filter1_short(false),
+    bool filter2_long(false), bool filter2_short(false),
+    int CumMA_count(0), double CumMA(0),
+    double diff1(0), double diff2(0),
+    int entry_dir(0), bool timeFilter(false);
+
+{% block by_date_params %}
+{PLACE OOS CURVE PARAMS HERE}
+{% endblock %}
+
+{ ******* LSB adjustment  ********** }
+{% block lsb_adjustment %}
+{% if logic['lsb'] is defined and logic['lsb'] != None %}
+  {% for code in logic['lsb'] %}
+    {{ code }}
+  {% endfor %}
+{% endif %}
+{% endblock %}
+
+{ ******* POI *********************** }
+{% block poi %}
+switch ( poi_switch )
+begin {% for v in logic['poi'] %}
+    case {{ loop.index }} : begin
+      {% if setup.opt_inputs.lsb.value != ['2'] -%}
+      poi_long = {{ v['long'] }}
+      {% endif -%}
+      {% if setup.opt_inputs.lsb.value != ['1'] -%}
+      poi_short = {{ v['short'] }}
+   {% endif %} end;
+{% endfor %}
+end;
+{% endblock %}
+
+{ ******* BreakOut Levels *********************** }
+{% block breakout_level %}
+{% if setup.opt_inputs.lsb.value != ['2'] -%}
+  bo_level_long = poi_long + (fract * AvgTrueRange(natr) );
+{% endif -%}
+{% if setup.opt_inputs.lsb.value != ['1'] -%}
+  bo_level_short = poi_short - (fract * AvgTrueRange(natr) );
+{% endif -%}
+{% endblock %}
+
+{ ******* Filter 1 logic ************************ }
+{% block filter_1 %}
+switch ( filter1_switch )
+begin
+  {% for v in logic['filter_1'] %}
+    case {{ loop.index }} : begin
+      {% if setup.opt_inputs.lsb.value != ['2'] -%}
+      filter1_long = {{ v.long }};
+      {% endif -%}
+      {% if setup.opt_inputs.lsb.value != ['1'] -%}
+      filter1_short = {{ v.short }};
+      {% endif -%}
+    end;
+  {% endfor %}
+{% endblock %}
+
+{ ******* Filter 2 logic b ***********}
+{% block filter_2 %}
+  {% for i in setup['filter_1'] %}
+    {{ i }},
+  {% endfor %}
+{% endblock %}
+  
+{ ****** Time Segment ***************}
+{% block time_filter %}
+{{ logic['tseg'] }}
+{% endblock %}
+
+{% block execution %}
+{******* EXECUTION ******************}
+//Protection that both LONG and SHORT stop orders placed at the same time 
+diff1 = absvalue(close - BO_Level_LONG);
+diff2 = absvalue(close - BO_Level_SHORT);
+//always pick only one entry, the closer one to the actual market
+if (diff1 <= diff2) then 
+  final_entry_dir = 1
+else
+  final_entry_dir = -1;
+if lsb = 1 then final_entry_dir = 1;
+if lsb = 2 then final_entry_dir = -1;
+   
+{Executes LONG entries} 
+if (MarketPosition = 0 or time = SessionEndTime(0, 1)) 
+  and filter1_long = true 
+  and final_entry_dir > 0 
+  and time_filter = true
+  and EntriesToday(Date) < trade_per_day and (lsb = 1 or lsb = 3) then
+    buy next bar at BO_Level_LONG stop; 
+ 
+{Executes SHORT entries} 
+if (MarketPosition = 0 or time = SessionEndTime(0, 1)) 
+  and filter1_short = true 
+  and final_entry_dir < 0
+  and time_filter = true
+  and EntriesToday(Date) < trade_per_day and (lsb = 2 or lsb = 3) then
+    sellshort next bar at BO_Level_SHORT stop; 
+{% endblock %}
+
+{% block exits %}
+{******* EXITS ******************}
+{ StopLoss } 
+{% if logic['stop_loss'] is defined and logic['stop_loss'] != None %}
+  {{ logic['stop_loss'] }}
+{% endif %}
+ 
+{ Profit-target - for SWING strategies only } 
+{% if logic['profit_target'] is defined and logic['profit_target'] != None %}
+  {{ logic['profit_target'] }}
+{% endif %}
+If PT_switch = 1 then setprofittarget (PT);
+ 
+{ End of Day (EOD) exit (for daytrading strategies only)}
+If DaytradingORswing = 0 then setexitonclose; 
+{% endblock %}

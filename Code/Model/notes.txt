@@ -1,0 +1,9 @@
+# To export:
+\connect database_name;
+\copy my_table to 'my_table.csv' csv;
+\q
+
+# To import:
+\connect database_name;
+COPY my_table FROM 'my_table.csv' DELIMITER ',' CSV;
+\q

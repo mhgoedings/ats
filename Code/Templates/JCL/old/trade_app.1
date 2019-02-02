@@ -1,0 +1,167 @@
+using elsystem; 
+using elsystem.windows.forms; 
+using elsystem.drawing; 
+ 
+inputs: 
+	int MinuteInterval(5), 
+	int DaysBack(90), 
+	NumDevsStep(0.1); 
+	 
+variables: 
+	Form form1(null), 
+	Button StartButton(null), 
+	GroupBox SymbolGroupBox(null), 
+	Label PBarLabel(null),
+	{TextBox SymbolToOptimizeTextBox(null), }
+	ProgressBar PBar(null), 
+	tsopt.Optimizer optimizer(null); 
+ 
+method void OnStartButtonClick(elsystem.Object sender, elsystem.EventArgs args) 
+begin 
+	StartOptimization(); 
+	PBar.Focus(); 
+end; 
+ 
+ 
+method tsopt.Job DefineJob() 
+vars: 
+	tsopt.Job job; 
+begin 
+	job = new tsopt.Job; 
+
+job
+  .SetOptimizationMethod(tsopt.OptimizationMethod.Genetic)
+  .Securities
+    .AddSecurity()
+      .SetSymbol("CSCO")
+      .Interval
+        .SetMinuteChart(5)
+      .EndInterval
+      .History
+        .SetFirstDate("12/30/2015")
+        .SetLastDate("12/29/2016")
+        .SetDaysBack(180)
+      .EndHistory
+    .EndSecurity
+  .EndSecurities
+  .Strategies
+    .AddStrategy("proto_1")
+      .ELInputs
+        .OptRange("natr", 5, 60, 5)
+        .SetInput("poi_n1", -1)
+        .OptRange("poi", 1, 8, 1)
+        .OptList("filter_1",2,5,6)
+        .OptRange("filter_1_n1", 1, 20, 1)
+        .OptRange("filter_1_n2", 1, 20, 1)
+        .OptRange("fract", 0.6, 3.0, 0.15)
+        .OptRange("lsg", 1, 3, 1)
+        .SetInput("time_segment", 2)
+        .OptRange("stop_loss", 500, 2500, 500)
+        .SetInput("filter_2", 5)
+        .OptRange("filter_2_n1", 1, 20, 1)
+      .EndELInputs
+      .SetMaxBarsBack(200)
+    .EndStrategy
+  .EndStrategies
+  .Settings
+    .GeneticOptions
+      .SetPopulationSize(500)
+      .SetGenerations(50)
+    .EndGeneticOptions
+    .ResultOptions
+      .SetFitnessMetric(tsopt.MetricID.TSIndex)
+      .SetNumTestsToKeep(300)
+    .EndResultOptions
+  .EndSettings
+.UseDefinition(); 
+
+end; 
+ 
+method void StartOptimization() 
+vars: 
+	tsopt.Job job; 
+begin 
+ClearPrintLog; 
+	Print("Starting optimization..."); 
+	job = DefineJob(); 
+	optimizer = new tsopt.Optimizer; 
+	optimizer.JobDone += OptDone; 
+	optimizer.JobFailed += OptError; 
+	optimizer.ProgressChanged += OptProgress; 
+	PBar.Value = 0; // Reset progress bar value to 0% 
+	optimizer.StartJob(job); 
+end; 
+ 
+method void OptProgress(Object sender, tsopt.ProgressChangedEventArgs args) 
+vars: 
+	int pct; 
+begin 
+ 
+	// Calculate current progress bar percentage 
+	if args.Progress.TestCount <> 0 then 
+		pct = Round((args.Progress.TestNum / args.Progress.TestCount) * 100, 0) astype int;	 
+	PBar.Value = pct; 
+ 
+	Print("Test ", args.Progress.TestNum.ToString(), " of ", 
+	 args.Progress.TestCount.ToString()); 
+	Print(" ", args.BestValues.FitnessName, " = ", 
+	 args.BestValues.FitnessValue.ToString()); 
+	  
+end; 
+ 
+method void OptDone(object sender, tsopt.JobDoneEventArgs args) 
+begin 
+	PBar.Value = 100; // Set progress bar to 100% 
+	Print("Optimization done"); 
+	Print("Net Profit = ", args.Results.NetProfit()); 
+end; 
+ 
+method void OptError(Object sender, tsopt.JobFailedEventArgs args) 
+begin 
+	PBar.Value = 100; // Set progress bar to 100% 
+	Print("Optimization Error: ", args.Error.Message); 
+end; 
+ 
+once 
+begin 
+ 
+	form1 = Form.Create("OptTest", 500, 500); 
+	form1.BackColor = Color.LightGray; 
+	startButton = Button.Create("Start Optimization", 152, 30); 
+	startButton.Location(5, 60); 
+	startButton.BackColor = Color.LightGreen; 
+	startButton.Click += OnStartButtonClick; 
+	form1.AddControl(StartButton); 
+ 
+	// Create GroupBox and add to form 
+	SymbolGroupBox = GroupBox.Create(150,50); 
+	SymbolGroupBox.Location(5, 5); 
+	SymbolGroupBox.BackColor = Color.LightGray; 
+	SymbolGroupBox.Text = "Symbol To Optimize"; 
+	form1.AddControl(SymbolGroupBox); 
+ 
+	// Create TextBox and add to GroupBox 
+	SymbolToOptimizeTextBox = TextBox.Create("MSFT", 100, 20); 
+	SymbolToOptimizeTextBox.BackColor = Color.White; 
+	SymbolToOptimizeTextBox.ForeColor = Color.Black; 
+	SymbolToOptimizeTextBox.Location(8, 20); 
+	 
+	SymbolGroupBox.Controls.Add( SymbolToOptimizeTextBox ); 
+ 
+	// Create progress bar label and add to form 
+	PBarLabel = Label.Create("Progress: ", 60, 24); 
+	PBarLabel.TextAlign = ContentAlignment.BottomRight; 
+	PBarLabel.BackColor = Color.LightGray; 
+	PBarLabel.Location(160, 60); 
+	form1.AddControl(PBarLabel); 
+	 
+	// Create progress bar and add to form 
+	PBar = ProgressBar.Create(150, 24); 
+	PBar.Location(225, 64); 
+	form1.AddControl(PBar); 
+	 
+	form1.Show(); 
+	SymbolToOptimizeTextBox.Focus(); 
+	 
+end; 
+

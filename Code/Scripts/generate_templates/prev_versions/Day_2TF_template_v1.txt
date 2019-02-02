@@ -1,0 +1,518 @@
+{ META DATA }
+
+{ _marker_1 }
+Inputs:
+  int L_S_B(1),
+
+  int poi_switch(1),
+  int poi_n1(1),
+  int NATR(9),
+  double  Fract(1.3),
+
+  int filter1_switch(15),
+  int filter1_n1(8),
+  int filter1_n2(16),
+ 
+  int filter2_switch(16),
+  int filter2_n1(4),
+  int filter2_n2(15),
+
+  int tSegment(0),
+
+  int sl_switch(0),
+  int stop_loss(1000),
+  int pt_switch(0),
+  int profit_target(1000);
+
+{ _marker_2 }
+vars:
+  bool SecondDataYesNo(true),
+  int sess_start(<START>),
+  int sess_end(<END>),
+  int timeframe(<BARSIZE>),
+  int TradesPerDay(1),
+  int DaytradingORswing(0);
+
+{ _marker_3 }
+vars: 
+  double poi_long(0), double poi_short(0),
+  double BO_level_long(0), double BO_level_short(0),
+  bool filter1_long(false), bool filter1_short(false),
+  bool filter2_long(false), bool filter2_short(false), 
+  int CumMA_count(0), double CumMA(0),
+  double diff1(0), double diff2(0),
+  int FinalEntryDirection(0), bool timeFilter(false);
+
+{PLACE OOS CURVE PARAMS HERE}
+
+{ _marker_4 }
+switch ( poi_switch ) 
+begin
+  case 1 : begin
+    poi_long = CloseD(1);
+    poi_short = poi_long;
+  end;
+  case 2 : begin
+    poi_long = OpenD(0);
+    poi_short = poi_long;
+  end;
+  case 3 : begin
+    poi_long = LowD(0);
+    poi_short = HighD(0);
+  end;
+  case 4 : begin
+    poi_long = LowD(1);
+    poi_short = HighD(1);
+  end;
+  case 5 : begin
+    poi_long = minList( CloseD(1), OpenD(0) ); 
+    poi_short = maxList( CloseD(1), OpenD(0) );
+  end;
+  case 6 : begin
+    poi_long = maxList( CloseD(1), OpenD(0) ); 
+    poi_short = minList( CloseD(1), OpenD(0) );
+  end;  
+  case 7 : begin
+    poi_long = maxList( CloseD(1), LowD(0) ); 
+    poi_short = minList( CloseD(1), HighD(0) );
+  end; 
+  case 8 : begin {Cumulative Moving Average - a proprietary indicator}
+    If date <> date[1] then CumMA_count = 0;
+    CumMA_count = CumMA_count + 1;
+    CumMA = average((H+L)/2 , CumMA_count);
+    poi_long = CumMA;
+    poi_short = CumMA;
+  end;
+  case 9 : begin
+    Print("poi(9): ","Xaverage(C, ",poi_n1," * 5)[1]);");
+    poi_long = Xaverage(C, poi_n1 * 5)[1]; 
+    poi_short = poi_long;    
+  end;
+  case 10 : begin
+    poi_long = Xaverage(L, poi_n1 * 5); 
+    poi_short = Xaverage(H, poi_n1 * 5);       
+  end;     
+  case 11 : begin
+    poi_long = Xaverage(MedianPrice, poi_n1 * 5 )[1]; 
+    poi_short = poi_long;     
+  end;
+  case 12 : begin
+    poi_long = bollingerband(C, 3 * poi_n1, -1.5)[1];
+    poi_short = bollingerband(C, 3 * poi_n1, 1.5)[1];
+  end;       
+end;
+
+{ _marker_5 }
+switch (filter1_switch) 
+begin 
+  case 0: begin
+    filter1_long = True;
+    filter1_short = True;
+  end;
+  case 1 : begin 
+    filter1_long = AvgTrueRange(3 * filter1_n1) > AvgTrueRange(5 * filter1_n2) ; 
+    filter1_short = AvgTrueRange(3 * filter1_n1) > AvgTrueRange(5 * filter1_n2) ; 
+  end; 
+  case 2 : begin 
+    filter1_long = AvgTrueRange(3 * filter1_n1) <= AvgTrueRange(5 * filter1_n2) ; 
+    filter1_short = AvgTrueRange(3 * filter1_n1) <= AvgTrueRange(5 * filter1_n2) ; 
+  end; 
+    case 3 : begin 
+    filter1_long = AvgTrueRange(3 * filter1_n1) < AvgTrueRange(5 * filter1_n2) ; 
+    filter1_short = AvgTrueRange(3 * filter1_n1) > AvgTrueRange(5 * filter1_n2) ;
+  end; 
+  case 4 : begin 
+    filter1_long = AvgTrueRange(3 * filter1_n1) > AvgTrueRange(5 * filter1_n2) ; 
+    filter1_short = AvgTrueRange(3 * filter1_n1) < AvgTrueRange(5 * filter1_n2) ;
+  end; 
+  case 5 : begin
+    filter1_long  = Range > AvgTrueRange(filter1_n1 * 5);
+    filter1_short = Range > AvgTrueRange(filter1_n1 * 5);
+  end;
+  case 6 : begin
+    filter1_long  = Range <= AvgTrueRange(filter1_n1 * 5);
+    filter1_short = Range <= AvgTrueRange(filter1_n1 * 5);
+  end;    
+  case 7 : begin 
+    filter1_long  = (filter1_n2 * 0.2) * Range > AvgTrueRange(filter1_n1 * 5);
+    filter1_short = (filter1_n2 * 0.2) * Range >  AvgTrueRange(filter1_n1 * 5);
+  end;
+  case 8 : begin 
+    filter1_long  = Range <= (filter1_n2 * 0.2) * AvgTrueRange(filter1_n1 * 5);
+    filter1_short = Range <= (filter1_n2 * 0.2) * AvgTrueRange(filter1_n1 * 5);
+  end;
+  case 9 : begin     
+    filter1_long =  DMIplus( filter1_n1 * 10 ) < DMIminus(filter1_n1 * 10);
+    filter1_short = DMIplus(filter1_n1 * 10) > DMIminus(filter1_n1 * 10);
+  end;
+  case 10 : begin     
+    filter1_long =  DMIplus( filter1_n1 * 10 ) > DMIminus(filter1_n1 * 10);
+    filter1_short = DMIplus(filter1_n1 * 10) < DMIminus(filter1_n1 * 10);    
+  end;   
+  case 11 : begin     
+    filter1_long =  DMIplus( filter1_n1 * 10 ) < DMIminus(filter1_n2 * 10);
+    filter1_short = DMIplus(filter1_n1 * 10) > DMIminus(filter1_n2 * 10);
+  end;
+  case 12 : begin     
+    filter1_long =  DMIplus( filter1_n1 * 10 ) > DMIminus(filter1_n2 * 10);
+    filter1_short = DMIplus(filter1_n1 * 10) < DMIminus(filter1_n2 * 10);    
+  end;
+  case 13 : begin     
+    filter1_long =  DMIplus( filter1_n1 * 5 ) < DMIminus(filter1_n2 * 5 );
+    filter1_short = DMIplus(filter1_n1 * 5 ) > DMIminus(filter1_n2 * 5 );
+  end;
+  case 14 : begin     
+    filter1_long =  DMIplus( filter1_n1 * 5 ) > DMIminus(filter1_n2 * 5 );
+    filter1_short = DMIplus(filter1_n1 * 5 ) < DMIminus(filter1_n2 * 5 );    
+  end;   
+  case 15 : begin    
+    filter1_long =  ADX(filter1_n2 * 5) > filter1_n1 * 2;
+    filter1_short = filter1_long;
+  end; 
+  case 16 : begin  
+    filter1_long =  ADX(filter1_n2 * 5) < filter1_n1 * 2;
+    filter1_short = filter1_long;
+  end; 
+  case 17 : begin 
+    filter1_long = TrueRange * (filter1_n1 * 0.15) >= highest( H, filter1_n2) - C; 
+    filter1_short = TrueRange * (filter1_n1 * 0.15) <= C - lowest(L, filter1_n2); 
+  end; 
+  case 18 : begin 
+    filter1_long = TrueRange * (filter1_n1 * 0.15) <= highest( H, filter1_n2) - C; 
+    filter1_short = TrueRange * (filter1_n1 * 0.15) >= C - lowest(L, filter1_n2); 
+  end;  
+  case 19 : begin 
+    filter1_long = AvgTrueRange(filter1_n1 * 2) > CloseD(1) - Lowest(C, filter1_n2) ; 
+    filter1_short = AvgTrueRange(filter1_n1  * 2) <  Highest(C, filter1_n2) - CloseD(1) ; 
+  end;  
+  case 20 : begin 
+    filter1_long = AvgTrueRange(filter1_n1 * 2) < CloseD(1) - Lowest(C, filter1_n2) ; 
+    filter1_short = AvgTrueRange(filter1_n1  * 2) >  Highest(C, filter1_n2) - CloseD(1) ; 
+  end; 
+  case 21 :  begin 
+    filter1_long = ( Close - CloseD(1) ) > 0;
+    filter1_short = ( CloseD(1) - Close ) > 0;
+  end;
+  case 22 :  begin 
+    filter1_long = ( Close - CloseD(1) ) < 0;
+    filter1_short = ( CloseD(1) - Close ) < 0;
+  end;
+  case 23 : begin 
+    filter1_long = AvgTrueRange(filter1_n1 * 3) < CloseD(1) - LowD(0); 
+    filter1_short = AvgTrueRange(filter1_n1 * 3) < HighD(0) - CloseD(1);    
+  end; 
+  case 24 : begin 
+    filter1_long = AvgTrueRange(filter1_n1 * 3) > CloseD(1) - LowD(0); 
+    filter1_short = AvgTrueRange(filter1_n1 * 3) > HighD(0) - CloseD(1);   
+  end; 
+  case 25 : begin 
+    filter1_long = (C - lowest(L,filter1_n2 ) ) > ( AvgTrueRange ( 3*filter1_n1 )  );
+    filter1_short = (C - highest(H,filter1_n2 ) ) < - ( AvgTrueRange ( 3*filter1_n1 ) ); 
+  end;  
+  case 26 : begin 
+    filter1_long = (C - lowest(L,filter1_n2 ) ) < ( AvgTrueRange ( 3*filter1_n1 )  );
+    filter1_short = (C - highest(H,filter1_n2  ) ) > - ( AvgTrueRange ( 3*filter1_n1 ) ); 
+  end;  
+  case 27 : begin 
+    filter1_long = L[filter1_n1] >= CloseD(1); 
+    filter1_short = H[filter1_n1] <= CloseD(1); 
+  end; 
+  case 28 : begin 
+    filter1_long = close > OpenD(0) ; 
+    filter1_short = close < OpenD(0) ; 
+  end; 
+  case 29 : begin 
+    filter1_long = close < OpenD(0) ; 
+    filter1_short = close > OpenD(0) ; 
+  end; 
+  case 30 : begin 
+    filter1_long = TrueRange >= OpenD(0) - HighD(filter1_n1); 
+    filter1_short = TrueRange <= OpenD(0) - LowD(filter1_n1); 
+  end; 
+  case 31 : begin 
+    filter1_long = LowD(0) >= CloseD(1) - ((filter1_n1 * 50) / BigPointValue ); 
+    filter1_short = HighD(0) <= closeD(1) + ((filter1_n1 * 50) / BigPointValue ); 
+  end; 
+  case 32 : begin 
+    filter1_long = LowD(0) <= CloseD(1) - ((filter1_n1 * 50) / BigPointValue ); 
+    filter1_short = HighD(0) >= closeD(1) + ((filter1_n1 * 50) / BigPointValue ); 
+  end;
+  case 33 : begin  
+    filter1_long =  Volume  > average(volume, 3 * filter1_n1) ; 
+    filter1_short = filter1_long;
+  end;
+  case 34 : begin  
+    filter1_long =  Volume  < average(volume, 3 * filter1_n1); 
+    filter1_short = filter1_long; 
+  end;
+  case 35 : begin   
+    filter1_long =  Volume  > average(volume, 3 * filter1_n1) ; 
+    filter1_short = Volume  > average(volume, 3 * filter1_n2) ;
+  end; 
+  case 36 : begin  
+    filter1_long =  Volume  < average(volume, 3 * filter1_n1); 
+    filter1_short =  Volume  < average(volume, 3 * filter1_n2);  
+  end;
+  case 37 : begin  
+    filter1_long =  Volume * (0.1 * filter1_n2) > average(volume, 2 * filter1_n1) ; 
+    filter1_short = Volume * (0.1 * filter1_n2) > average(volume, 2 * filter1_n1) ; 
+  end;
+  case 38 : begin  
+    filter1_long =  Volume * (0.1 * filter1_n2) < average(volume, 2 * filter1_n1) ; 
+    filter1_short = Volume * (0.1 * filter1_n2) < average(volume, 2 * filter1_n1) ;  
+  end;            
+  case 39 : begin  
+    filter1_long =  Volume < Volume[1];
+    filter1_short = Volume < Volume[1];
+  end;
+  case 40 : begin  
+    filter1_long =  Volume > Volume[1];
+    filter1_short = Volume > Volume[1]; 
+  end; 
+end;
+
+
+{ _marker_6 }
+If SecondDataYesNo = true then 
+begin
+  filter2_long = False;
+  switch (filter2_switch) 
+  begin 
+    case 0: begin
+      filter2_long = True;
+      filter2_short  = True;
+    end;
+    
+    case 1 : begin 
+      filter2_long = AvgTrueRange(3 * filter2_n1)  of data(2) > AvgTrueRange(5 * filter2_n2) of data(2); 
+      filter2_short  = AvgTrueRange(3 * filter2_n1) of data(2) > AvgTrueRange(5 * filter2_n2) of data(2) ; 
+    end; 
+    case 2 : begin 
+      filter2_long = AvgTrueRange(3 * filter2_n1) of data(2) <= AvgTrueRange(5 * filter2_n2) of data(2) ; 
+      filter2_short  = AvgTrueRange(3 * filter2_n1) of data(2) <= AvgTrueRange(5 * filter2_n2) of data(2) ; 
+    end; 
+    case 3 : begin 
+      filter2_long = AvgTrueRange(3 * filter2_n1) of data(2) < AvgTrueRange(5 * filter2_n2) of data(2) ; 
+      filter2_short  = AvgTrueRange(3 * filter2_n1) of data(2) > AvgTrueRange(5 * filter2_n2) of data(2) ;
+    end; 
+    case 4 : begin 
+      filter2_long = AvgTrueRange(3 * filter2_n1) of data(2) > AvgTrueRange(5 * filter2_n2) of data(2) ; 
+      filter2_short  = AvgTrueRange(3 * filter2_n1) of data(2) < AvgTrueRange(5 * filter2_n2) of data(2) ;
+    end; 
+    case 5 : begin
+      filter2_long  = Range of data(2) > AvgTrueRange(filter2_n1 * 5) of data(2);
+      filter2_short  = Range of data(2) > AvgTrueRange(filter2_n1 * 5) of data(2);
+    end;
+    case 6 : begin
+      filter2_long  = Range of data(2) <= AvgTrueRange(filter2_n1 * 5) of data(2);
+      filter2_short  = Range of data(2) <= AvgTrueRange(filter2_n1 * 5) of data(2);
+    end;    
+    case 7 : begin 
+      filter2_long  = (filter2_n2 * 0.2) * Range of data(2) > AvgTrueRange(filter2_n1 * 5) of data(2);
+      filter2_short  = (filter2_n2 * 0.2) * Range of data(2) > AvgTrueRange(filter2_n1 * 5) of data(2);
+    end;
+    case 8 : begin 
+      filter2_long  = Range of data(2) <= (filter2_n2 * 0.2) * AvgTrueRange(filter2_n1 * 5) of data(2);
+      filter2_short  = Range of data(2) <= (filter2_n2 * 0.2) * AvgTrueRange(filter2_n1 * 5) of data(2);
+    end;
+    
+    case 9 : begin
+      filter2_long=false;filter2_short=false;
+      //filter2_long =  DMIplus( filter2_n1 * 10 ) of data(2) < DMIminus(filter2_n1 * 10) of data(2);
+      //filter2_short  = DMIplus(filter2_n1 * 10) of data(2) > DMIminus(filter2_n1 * 10) of data(2);
+    end;
+    
+    case 10 : begin     
+      filter2_long=false;filter2_short=false;
+      //filter2_long =  DMIplus( filter2_n1 * 10 ) of data(2) > DMIminus(filter2_n1 * 10) of data(2);
+      //filter2_short  = DMIplus(filter2_n1 * 10) of data(2) < DMIminus(filter2_n1 * 10) of data(2);    
+    end;   
+    case 11 : begin     
+      filter2_long=false;filter2_short=false;
+      //filter2_long =  DMIplus( filter2_n1 * 10 ) of data(2) < DMIminus(filter2_n2 * 10) of data(2);
+      //filter2_short  = DMIplus(filter2_n1 * 10) of data(2) > DMIminus(filter2_n2 * 10) of data(2);
+    end;
+    case 12 : begin     
+      filter2_long=false;filter2_short=false;
+      //filter2_long =  DMIplus( filter2_n1 * 10 ) of data(2) > DMIminus(filter2_n2 * 10) of data(2);
+      //filter2_short  = DMIplus(filter2_n1 * 10) of data(2) < DMIminus(filter2_n2 * 10) of data(2);    
+    end;   
+    case 13 : begin     
+      filter2_long=false;filter2_short=false;
+      //filter2_long =  DMIplus( filter2_n1 * 5 ) of data(2) < DMIminus(filter2_n2 * 5 ) of data(2);
+      //filter2_short  = DMIplus(filter2_n1 * 5 ) of data(2) > DMIminus(filter2_n2 * 5 ) of data(2);
+    end;
+    case 14 : begin     
+      filter2_long=false;filter2_short=false;
+      //filter2_long =  DMIplus( filter2_n1 * 5 ) of data(2) > DMIminus(filter2_n2 * 5 ) of data(2);
+      //filter2_short  = DMIplus(filter2_n1 * 5 ) of data(2) < DMIminus(filter2_n2 * 5 ) of data(2);    
+    end;   
+    case 15 : begin    
+      filter2_long=false;filter2_short=false;
+      //filter2_long =  ADX(filter2_n2 * 5) of data(2) > filter2_n1 * 2;
+      //filter2_short  = filter2_long;
+    end; 
+    case 16 : begin  
+      filter2_long=false;filter2_short=false;
+      //filter2_long =  ADX(filter2_n2 * 5) of data(2) < filter2_n1 * 2;
+      //filter2_short  = filter2_long;
+    end;
+     
+    case 17 : begin 
+      filter2_long = TrueRange of data(2) * (filter2_n1 * 0.15) > highest( H, filter2_n2) of data(2) - C of data(2);  
+      filter2_short  = TrueRange of data(2) * (filter2_n1 * 0.15) < C of data(2) - lowest(L, filter2_n2) of data(2); 
+    end; 
+    case 18 : begin 
+      filter2_long = TrueRange of data(2) * (filter2_n1 * 0.15) <= highest( H, filter2_n2) of data(2) - C of data(2); 
+      filter2_short  = TrueRange of data(2) * (filter2_n1 * 0.15) >= C of data(2) - lowest(L, filter2_n2) of data(2); 
+    end; 
+    case 19 : begin 
+      filter2_long = AvgTrueRange(filter2_n1 * 2) of data(2) > CloseD(1) - Lowest(C, filter2_n2) of data(2) ; 
+      filter2_short  = AvgTrueRange(filter2_n1  * 2) of data(2) <  Highest(C, filter2_n2) of data(2) - CloseD(1); 
+    end;  
+    case 20 : begin 
+      filter2_long = AvgTrueRange(filter2_n1 * 2) of data(2) < CloseD(1) - Lowest(C, filter2_n2) of data(2); 
+      filter2_short  = AvgTrueRange(filter2_n1  * 2) of data(2) >  Highest(C, filter2_n2) of data(2) - CloseD(1) ; 
+    end;
+     
+    case 21 :  begin 
+      filter2_long = ( Close of data(2) - CloseD(1) ) > 0;
+      filter2_short  = ( CloseD(1) of data(2) - Close ) > 0;
+    end;
+    case 22 :  begin 
+      filter2_long = ( Close of data(2) - CloseD(1) ) < 0;
+      filter2_short  = ( CloseD(1) of data(2) - Close ) < 0;
+    end;
+    case 23 : begin 
+      filter2_long = AvgTrueRange(filter2_n1 * 3) of data(2) < CloseD(1) - LowD(0); 
+      filter2_short  = AvgTrueRange(filter2_n1 * 3) of data(2) < HighD(0) - CloseD(1);   
+    end; 
+    case 24 : begin 
+      filter2_long = AvgTrueRange(filter2_n1 * 3) of data(2) > CloseD(1) - LowD(0); 
+      filter2_short  = AvgTrueRange(filter2_n1 * 3) of data(2) > HighD(0) - CloseD(1);  
+    end;
+    case 25 : begin 
+      filter2_long = (C of data(2) - lowest(L,filter2_n2 ) of data(2) ) > ( AvgTrueRange ( 3*filter2_n1 ) of data(2)  );
+      filter2_short = (C of data(2) - highest(H,filter2_n2 ) of data(2) ) < - ( AvgTrueRange ( 3*filter2_n1 ) of data(2) ); 
+    end;  
+    case 26 : begin 
+      filter2_long = (C of data(2) - lowest(L,filter2_n2 ) of data(2) ) < ( AvgTrueRange ( 3*filter2_n1 ) of data(2)  );
+      filter2_short = (C of data(2) - highest(H,filter2_n2  ) of data(2) ) > - ( AvgTrueRange ( 3*filter2_n1 ) of data(2) ); 
+    end; 
+    case 27 : begin 
+      filter2_long = L[filter2_n1] of data(2) >= CloseD(1); 
+      filter2_short  = H[filter2_n1] of data(2) <= CloseD(1); 
+    end; 
+    case 28 : begin 
+      filter2_long = close of data(2) > OpenD(0) ; 
+      filter2_short  = close of data(2) < OpenD(0) ; 
+    end;
+    case 29 : begin 
+      filter2_long = close of data(2) < OpenD(0) ; 
+      filter2_short = close of data(2)  > OpenD(0) ; 
+    end;
+    case 30 : begin 
+      filter2_long = TrueRange of data(2) >= OpenD(0) - HighD(filter2_n1); 
+      filter2_short  = TrueRange of data(2) <= OpenD(0) - LowD(filter2_n1); 
+    end; 
+    case 31 : begin 
+      filter2_long = (HighD(0) - LowD(0)) * Bigpointvalue < filter2_n1*5; 
+      filter2_short  = filter2_long; 
+    end;  
+    case 32 : begin 
+      filter2_long = (HighD(0) - LowD(0)) * Bigpointvalue > filter2_n1*5; 
+      filter2_short  = filter2_long; 
+    end; 
+    case 33 : begin  
+      filter2_long =  Volume of data(2)  > average(volume, 3 * filter2_n1) of data(2) ; 
+      filter2_short  = filter2_long;
+    end; 
+    case 34 : begin  
+      filter2_long =  Volume of data(2)  < average(volume, 3 * filter2_n1) of data(2); 
+      filter2_short  = filter2_long; 
+    end;
+    
+    case 35 : begin   
+      filter2_long =  Volume of data(2)  > average(volume, 3 * filter2_n1) of data(2) ; 
+      filter2_short  = Volume of data(2)  > average(volume, 3 * filter2_n2) of data(2) ;
+    end; 
+    case 36 : begin  
+      filter2_long =  Volume of data(2)  < average(volume, 3 * filter2_n1) of data(2); 
+      filter2_short  =  Volume of data(2)  < average(volume, 3 * filter2_n1) of data(2);  
+    end;
+    case 37 : begin  
+      filter2_long =  Volume of data(2) * (0.1 * filter2_n2) > average(volume, 2 * filter2_n1) of data(2); 
+      filter2_short  = Volume of data(2) * (0.1 * filter2_n2) > average(volume, 2 * filter2_n1) of data(2) ; 
+    end;
+    case 38 : begin  
+      filter2_long =  Volume of data(2) * (0.1 * filter2_n2) < average(volume, 2 * filter2_n1) of data(2); 
+      filter2_short  = Volume of data(2) * (0.1 * filter2_n2) < average(volume, 2 * filter2_n1) of data(2) ;  
+    end;            
+    case 39 : begin  
+      filter2_long =  Volume of data(2) < Volume[1] of data(2);
+      filter2_short  = Volume of data(2) < Volume[1] of data(2);
+    end;
+    case 40 : begin  
+      filter2_long =  Volume of data(2)> Volume[1] of data(2);
+      filter2_short  = Volume of data(2)> Volume[1] of data(2); 
+    end;
+  end;
+end; 
+
+
+{ _marker_7 }
+Value1 = timetominutes(sess_start);
+Value2 = timetominutes(sess_end);
+Value3 = value2 - value1;
+
+Value4 = value3/3;
+
+Switch (tSegment) begin 
+  case 0: begin
+    timeFilter = True;
+  end;
+  case 1 : begin  
+    timeFilter = time > sess_start and time <= calctime(sess_start, value4);
+  end; 
+  case 2 : begin  
+    timeFilter = time > calctime(sess_start, value4) and time <= calctime(sess_start, (2 * value4) );
+  end;     
+  case 3 : begin  
+    timeFilter = time > calctime(sess_start, (2 * value4)) and time < calctime(sess_end,-timeframe);
+  end;     
+end; 
+      
+{ _marker_8 }
+BO_level_long = poi_long + (Fract * AvgTrueRange(NATR)); 
+BO_level_short = poi_short - (Fract * AvgTrueRange(NATR)); 
+
+diff1 = absvalue(close - BO_level_long);
+diff2 = absvalue(close - BO_level_short);
+if (diff1 <= diff2) then FinalEntryDirection = 1 else FinalEntryDirection = -1;
+   
+{ _marker_9 }
+if (MarketPosition = 0 or time = SessionEndTime(0, 1)) 
+  and filter1_long = true and filter2_long = true  
+  and FinalEntryDirection > 0 
+  and timeFilter = true
+  and EntriesToday(Date) < TradesPerDay and (L_S_B = 1 or L_S_B = 3) then
+    buy next bar at BO_level_long stop; 
+ 
+{ _marker_10 }
+if (MarketPosition = 0 or time = SessionEndTime(0, 1)) 
+  and filter1_short = true and filter2_short = true 
+  and FinalEntryDirection < 0
+  and timeFilter = true
+  and EntriesToday(Date) < TradesPerDay and (L_S_B = 2 or L_S_B = 3) then
+    sellshort next bar at BO_level_short stop; 
+
+{ _marker_11 }
+If sl_switch = 1 then setstoploss (stop_loss); 
+ 
+{ _marker_12 }
+If pt_switch = 1 then setprofittarget (profit_target);
+ 
+{ _marker_13 }
+If DaytradingORswing = 0 then setexitonclose; 
+
+{ _marker_14 }

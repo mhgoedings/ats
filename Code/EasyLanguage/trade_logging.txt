@@ -1,0 +1,252 @@
+// _TRADESLIST 
+variables:  
+    int MPP( 0 ),  
+    int CC( 0 ),   
+    int TT( 0 ) ;  
+     
+MPP = MarketPosition ;  
+CC = CurrentContracts ;  
+TT = TotalTrades ;  
+ 
+//  If the total trades has increased from the prior bar then an exit has occurred, so print out trade results  
+ 
+if AbsValue(MPP) = 0 then begin 
+ 
+  if TT[1] < TT and MPP[1]= 1 then  
+    print( File( "C:\TradesList.txt"), " IF Date=", Date:0:0, " and Time=", Time:4:0, "  THEN SELL  THIS BAR;"); 
+  if TT[1] < TT and MPP[1]= -1 then  
+    print( File( "C:\TradesList.txt"), " IF Date=", Date:0:0, " and Time=", Time:4:0, "  THEN BUY TO COVER THIS BAR;"); 
+     
+ end;         
+    
+//  The logic below detects when an entry OR reversing of a position occurs on the same bar.   
+ 
+if  AbsValue ( ( MPP * CC ) - ( MPP[1] * CC[1] ) ) > AbsValue( CC[1] ) then  
+    if MPP = -1 then  //  Short entry  
+        print( File( "C:\TradesList.txt"), " IF Date=", Date:0:0, " AND Time=", Time:4:0, "  THEN SELLSHORT TrdSize shares THIS BAR;")   
+    else             //  Long entry  
+        print( File( "C:\TradesList.txt"), " IF Date=", Date:0:0, " AND Time=", Time:4:0, "  THEN BUY TrdSize shares THIS BAR;") ;     
+ 
+ 
+##########################
+//_Trades_from_List 
+INPUTS:POSITION_SIZING(FALSE),InitCap(15000),MarginPerShare(4758),Sizelimit(1),SizeMin(1),PcntRiskOfBalance( 50); 
+ 
+variables:  
+TRDSIZE(0);  
+ 
+ 
+ 
+IF POSITION_SIZING = TRUE  THEN BEGIN 
+ 
+ 
+if (NETPROFIT  ) > InitCap then  
+TrdSize = IntPortion ((NETPROFIT   + InitCap ) /MarginPerShare)* (PcntRiskOfBalance / 100) ELSE 
+//TrdSize = IntPortion ((OpenPositionProfit + NETPROFIT   + InitCap ) /MarginPerShare)* (PcntRiskOfBalance / 100) ELSE   //// I DO NOT RECOMEND THIS 
+TrdSize =SizeMin; 
+if TrdSize > Sizelimit then TrdSize = Sizelimit; 
+ 
+END;//NOT FOR REAL LIVE TRADING 
+ 
+IF POSITION_SIZING = FALSE  THEN TrdSize = Sizelimit; 
+ 
+ IF Date=1141001 AND Time=1048  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141001 and Time=1213  THEN SELL  THIS BAR; 
+ IF Date=1141002 AND Time= 943  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141002 and Time= 952  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141002 AND Time=1011  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141002 AND Time=1119  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141002 AND Time=1123  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141002 AND Time=1206  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141002 and Time=1600  THEN SELL  THIS BAR; 
+ IF Date=1141003 AND Time= 941  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141003 AND Time=1024  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141003 and Time=1059  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141006 AND Time= 940  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141006 AND Time=1002  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141006 AND Time=1032  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141006 and Time=1047  THEN SELL  THIS BAR; 
+ IF Date=1141006 AND Time=1049  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141006 AND Time=1206  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141006 and Time=1244  THEN SELL  THIS BAR; 
+ IF Date=1141007 AND Time= 939  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141007 AND Time=1015  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141007 AND Time=1030  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141007 and Time=1058  THEN SELL  THIS BAR; 
+ IF Date=1141008 AND Time= 935  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141008 AND Time= 952  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141008 AND Time=1011  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141008 AND Time=1017  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141008 AND Time=1026  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141008 AND Time=1032  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141008 AND Time=1125  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141008 and Time=1600  THEN SELL  THIS BAR; 
+ IF Date=1141010 AND Time= 936  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141010 AND Time= 952  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141010 and Time=1018  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141010 AND Time=1140  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141010 and Time=1150  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141010 AND Time=1338  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141010 AND Time=1347  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141010 and Time=1600  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141013 AND Time= 933  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141013 AND Time= 941  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141013 and Time= 945  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141013 AND Time= 947  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141013 AND Time= 956  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141013 and Time= 957  THEN SELL  THIS BAR; 
+ IF Date=1141013 AND Time= 959  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141013 and Time=1002  THEN SELL  THIS BAR; 
+ IF Date=1141013 AND Time=1015  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141013 and Time=1036  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141013 AND Time=1048  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141013 AND Time=1115  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141013 AND Time=1122  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141013 and Time=1202  THEN SELL  THIS BAR; 
+ IF Date=1141014 AND Time= 933  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141014 and Time= 945  THEN SELL  THIS BAR; 
+ IF Date=1141014 AND Time= 956  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141014 AND Time=1002  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141014 AND Time=1008  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141014 and Time=1009  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141014 AND Time=1013  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141014 AND Time=1018  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141014 and Time=1024  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141014 AND Time=1502  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141014 and Time=1600  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141015 AND Time= 955  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141015 and Time= 957  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141015 AND Time=1015  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141015 and Time=1022  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141015 AND Time=1025  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141015 and Time=1026  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141015 AND Time=1030  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141015 and Time=1034  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141015 AND Time=1050  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141015 and Time=1051  THEN SELL  THIS BAR; 
+ IF Date=1141015 AND Time=1104  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141015 and Time=1115  THEN SELL  THIS BAR; 
+ IF Date=1141015 AND Time=1506  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141015 and Time=1540  THEN SELL  THIS BAR; 
+ IF Date=1141015 AND Time=1549  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141015 and Time=1600  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141016 AND Time= 945  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141016 and Time= 948  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141016 AND Time=1001  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141016 and Time=1002  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141016 AND Time=1007  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141016 AND Time=1009  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141016 and Time=1010  THEN SELL  THIS BAR; 
+ IF Date=1141016 AND Time=1011  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141016 and Time=1012  THEN SELL  THIS BAR; 
+ IF Date=1141016 AND Time=1016  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141016 AND Time=1019  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141016 and Time=1020  THEN SELL  THIS BAR; 
+ IF Date=1141016 AND Time=1021  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141016 and Time=1023  THEN SELL  THIS BAR; 
+ IF Date=1141016 AND Time=1024  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141016 and Time=1026  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141016 AND Time=1028  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141016 and Time=1029  THEN SELL  THIS BAR; 
+ IF Date=1141016 AND Time=1036  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141016 and Time=1040  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141016 AND Time=1049  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141016 and Time=1050  THEN SELL  THIS BAR; 
+ IF Date=1141016 AND Time=1054  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141016 and Time=1056  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141016 AND Time=1056  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141016 and Time=1100  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141016 AND Time=1101  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141016 AND Time=1103  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141016 AND Time=1125  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141016 and Time=1128  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141016 AND Time=1141  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141016 and Time=1148  THEN SELL  THIS BAR; 
+ IF Date=1141017 AND Time=1031  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141017 and Time=1036  THEN SELL  THIS BAR; 
+ IF Date=1141020 AND Time= 945  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141020 AND Time= 948  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141020 AND Time= 949  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141020 and Time= 955  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141020 AND Time=1006  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141020 and Time=1011  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141020 AND Time=1017  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141020 AND Time=1018  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141020 and Time=1600  THEN SELL  THIS BAR; 
+ IF Date=1141021 AND Time= 945  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141021 AND Time= 947  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141021 and Time= 950  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141022 AND Time= 943  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141022 AND Time=1008  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141022 AND Time=1018  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141022 AND Time=1030  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141022 and Time=1600  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141024 AND Time= 938  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141024 AND Time= 950  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141024 AND Time=1001  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141024 AND Time=1002  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141024 AND Time=1018  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141024 AND Time=1020  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141024 AND Time=1033  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141024 AND Time=1047  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141024 AND Time=1053  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141024 and Time=1115  THEN SELL  THIS BAR; 
+ IF Date=1141027 AND Time= 938  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141027 and Time= 948  THEN SELL  THIS BAR; 
+ IF Date=1141027 AND Time=1042  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141027 AND Time=1600  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141027 and Time=1600  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141028 AND Time= 946  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141028 AND Time=1600  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141028 and Time=1600  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141029 AND Time= 939  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141029 and Time= 941  THEN SELL  THIS BAR; 
+ IF Date=1141029 AND Time= 955  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141029 and Time=1003  THEN SELL  THIS BAR; 
+ IF Date=1141029 AND Time=1400  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141029 and Time=1401  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141029 AND Time=1410  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141029 and Time=1415  THEN SELL  THIS BAR; 
+ IF Date=1141029 AND Time=1427  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141029 and Time=1444  THEN SELL  THIS BAR; 
+ IF Date=1141030 AND Time= 935  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141030 and Time= 940  THEN SELL  THIS BAR; 
+ IF Date=1141030 AND Time= 943  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141030 AND Time= 957  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141030 AND Time=1017  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141030 AND Time=1033  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141030 AND Time=1056  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141030 and Time=1600  THEN SELL  THIS BAR; 
+ IF Date=1141103 AND Time= 935  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141103 and Time= 937  THEN SELL  THIS BAR; 
+ IF Date=1141103 AND Time= 941  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141103 and Time= 953  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141103 AND Time= 955  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141103 AND Time=1004  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141103 and Time=1600  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141104 AND Time=1015  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141104 AND Time=1124  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141104 AND Time=1600  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141104 and Time=1600  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141105 AND Time=1004  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141105 and Time=1033  THEN SELL  THIS BAR; 
+ IF Date=1141106 AND Time= 933  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141106 and Time= 939  THEN SELL  THIS BAR; 
+ IF Date=1141106 AND Time= 941  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141106 and Time= 946  THEN SELL  THIS BAR; 
+ IF Date=1141106 AND Time= 949  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141106 AND Time= 952  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141106 AND Time=1000  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141106 AND Time=1015  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141106 AND Time=1025  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141106 and Time=1030  THEN SELL  THIS BAR; 
+ IF Date=1141107 AND Time= 937  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141107 and Time= 940  THEN SELL  THIS BAR; 
+ IF Date=1141107 AND Time=1037  THEN BUY TrdSize shares THIS BAR; 
+ IF Date=1141107 and Time=1600  THEN SELL  THIS BAR; 
+ IF Date=1141110 AND Time= 941  THEN SELLSHORT TrdSize shares THIS BAR; 
+ IF Date=1141110 and Time= 951  THEN BUY TO COVER THIS BAR; 
+ IF Date=1141111 AND Time= 933  THEN BUY TrdSize shares THIS BAR; 
+ 
+ 
+

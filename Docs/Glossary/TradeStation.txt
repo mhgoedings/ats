@@ -1,0 +1,36 @@
+Return on Account	tbd	The percent of profit on the investment. This is calculated by dividing Net Profit by the Account size required - maximum intraday drawdown plus (+) Margin multiplied by (x) the maximum number of contracts held. Margin is a deposit an investor must make when buying and selling futures con tracts. For stock traders, margin should always be set to zero.
+
+TS (TradeStation) Index	tbd	A fitness function that maximizes the Net Profit and Winners while minimizing Intraday Drawdown. It calculates the Net Profit * NumWinTrades / AbsValue (Max. Intraday Drawdown).
+
+Expectancy Score (Van Tharp)	tbd	A fitness function that measures Expectancy x Opportunity. Based on a calculation by Van K. Tharp.
+Expectancy = (AW x PW + AL x PL) / |AL|
+  (expected profit per dollar risked)
+    AW = average winning trade (excluding largest win)
+    PW = probability of winning : PW = (Winning trades-1) / NST
+    AL = average losing trade (negative, excluding scratch losses)
+    |AL| = absolute value of AL
+    PL = probability of losing (PL = {non-scratch losses} / NST)
+
+Opportunity = NST / StudyDays
+     NST = {total trades} - {scratch trades} - 1
+       *In other words, NST = non-scratch trades during the period under test (a scratch trade loses
+       commission+slippage or less) minus 1
+    StudyDays = calendar days of history being tested
+
+
+Return Retracement Ratio (RRR)	rrr	Represents the average annualized compounded return R divided by an average maximum retracement AMR measure. RRR = R/AMR. For more information see Technical Analysis by Jack D. Schwager, Wiley.
+
+RINA Index	rina	This proprietary index combines select net profit, time in the market, and drawdown calculations into a single reward/risk ratio. The larger the number the more efficient the system. Look for a system with an index of 30 or more. 
+RINA Index = (Select Net Profit)/((Average Drawdown) x (Percent time in the market)) 
+
+Sharpe Ratio	sharpe_ratio	Average monthly return (%) minus the risk-free rate (Interest rate setting in the Costs tab of the Format System dialog box) divided by the standard deviation of monthly returns. The higher the number, the greater the return in relation to the risk. This calculation is based on the last 36 months. 
+Note This value will not display for systems applied to intraday charts. An alternative to this field is the Return Retracement Ratio. 
+
+K-ratio	k_ratio	This ratio is similar to the Sharpe Ratio. It differs in that it uses linear regression techniques to measure the consistency of results through time. The higher the ratio, the greater the return in relation to risk. 
+Note This value will not display for systems applied to intraday charts. 
+
+Max. Equity Run-up	equity_run_up	Displays the greatest profit run-up, from the previous lowest equity drawdown, bar to bar (see Note) looking across all trades, during the specified period. If a new equity drawdown low occurs we reset the high equity value to 0 looking for the next maximum run-up from that point. This value is displayed for All Trades only.
+
+You can see this value on a detailed  equity curve graph by looking from the lowest peaks to the highest peaks moving forward. (Valley to Peak)
+
+Takes into account commissions (and slippage, if specified for strategies).

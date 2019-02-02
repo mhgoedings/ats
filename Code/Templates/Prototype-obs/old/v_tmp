@@ -1,0 +1,139 @@
+{ jinja2 generated code v0.1 }
+{
+{% block head %} Strategy:
+{{ header }}
+{{ comments['chart_setup'] }}
+{{ comments['prototype_info'] }}
+} 
+{% endblock %}
+
+{% block inputs %}
+{% if setup['opt_inputs'] is defined and setup['opt_inputs']|length > 0 %} Inputs: {% endif -%}
+{% for k,dict2 in setup['opt_inputs'].items() %}
+    {{ dict2.dtype }} {{ k }}({{ dict2.value[0] }}){% if loop.index < setup['opt_inputs']|length %},{% else %};{% endif -%}
+{% endfor -%}
+{% endblock %}
+
+{% block param_vars %}
+Vars:
+    int sess_start({{ setup['sess_start'] }}),
+    int sess_end({{ setup['sess_end'] }}),
+    int timeframe(60),
+    int trades_per_day(1),
+    int day_or_swing(0),
+{% if setup['param_vars'] is defined and setup['param_vars']|length > 0 -%}
+{% for k,dict2 in setup['param_vars'].items() %}
+    {{ dict2.dtype }} {{ k }}({{ dict2.value }}),
+{% endfor -%}
+{% endif -%}
+{% endblock -%}
+{% block logic_vars -%}
+{% if setup['logic_vars'] is defined and setup['logic_vars']|length > 0 -%}
+{% for k,dict2 in setup['logic_vars'].items() -%}
+        {{ dict2.dtype }} {{ k }}({{ dict2.value }}){% if loop.index < setup['logic_vars']|length %},{% else %};{% endif -%}
+{% endfor -%}
+{% endif -%}
+{% endblock %}
+
+    double poi_long(0), double poi_short(0),
+    double bo_level_long(0), double bo_level_short(0),
+    bool filter1_long(false), bool filter1_short(false),
+    bool filter2_long(false), bool filter2_short(false),
+    int CumMA_count(0), double CumMA(0),
+    double diff1(0), double diff2(0),
+    int entry_dir(0), bool timeFilter(false);
+
+{% block by_date_params %}
+{PLACE OOS CURVE PARAMS HERE}
+{% endblock %}
+
+{ ************x********************* 
+  POI 
+  ********************************* }
+{% block poi %}
+switch ( poi_switch )
+begin {% for v in logic['poi'] %}
+    case {{ loop.index }} : begin
+      {% if setup['lsb'].value!=[2] -%} poi_long = {{ v['long'] }} {% endif %}
+      {% if setup['lsb'].value!=[1] -%} poi_short = {{ v['short'] }} {% endif %}
+    end; {% endfor %}
+end;
+{% endblock %}
+
+{ ************x********************* 
+  Distance (fract) 
+  ********************************* }
+{% block fract %}
+  {{ fract }}
+{% endblock %}
+
+{ ************x********************* 
+  Filter 1 logic 
+  ********************************* }
+{% block filter_1 %}
+switch ( filter1_switch )
+begin
+  {% for v in logic['filter_1'] %}
+    case {{ loop.index }} : begin
+      filter1_long = {{ v }};
+    end;
+  {% endfor %}
+{% endblock %}
+
+{ ********************************* 
+  Filter 2 logic b
+  ********************************* }
+{% block filter_2 %}
+  {% for i in setup['filter_1'] %}
+    {{ i }},
+  {% endfor %}
+{% endblock %}
+  
+{ ********************************* 
+  Time Segment 
+  ********************************* }
+{% block time_filter %}
+{% if setup['opt_inputs']['time_segment']['value']|length > 1 %}
+Value1 = {{ setup['time_segment_size'] }}
+Switch (tSegment) begin
+  case 0: begin
+    timeFilter = True;
+  end;
+  case 1 : begin
+    timeFilter = time > sess_start and time <= calctime(sess_start, Value1);
+  end;
+  case 2 : begin
+    timeFilter = time > calctime(sess_start, Value4) and time <= calctime(sess_start, (2 * Value1) );
+  end;
+  case 3 : begin
+    timeFilter = time > calctime(sess_start, (2 * Value1)) and time <calctime(sess_end,-timeframe);
+  end;
+end;
+{% endif %}
+{% endblock %}
+
+{% block execution %}
+{***** EXECUTION *****}
+//Protection that both LONG and SHORT stop orders placed at the same time 
+diff1 = absvalue(close - BO_Level_LONG);
+diff2 = absvalue(close - BO_Level_SHORT);
+//always pick only one entry, the closer one to the actual market
+if (diff1 <= diff2) then FinalEntryDirection = 1 else FinalEntryDirection = -1;
+{% endblock %}
+   
+{Executes LONG entries} 
+if (MarketPosition = 0 or time = SessionEndTime(0, 1)) 
+  and Filter1_Long = true 
+  and FinalEntryDirection > 0 
+  and TimeFiltr = true
+  and EntriesToday(Date) < TradesPerDay and (L_S_B = 1 or L_S_B = 3) then
+    buy next bar at BO_Level_LONG stop; 
+ 
+{Executes SHORT entries} 
+if (MarketPosition = 0 or time = SessionEndTime(0, 1)) 
+  and Filter1_Short = true 
+  and FinalEntryDirection < 0
+  and TimeFiltr = true
+  and EntriesToday(Date) < TradesPerDay and (L_S_B = 2 or L_S_B = 3) then
+    sellshort next bar at BO_Level_SHORT stop; 
+

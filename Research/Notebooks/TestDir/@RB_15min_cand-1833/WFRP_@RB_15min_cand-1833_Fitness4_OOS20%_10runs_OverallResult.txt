@@ -1,0 +1,15 @@
+Walk-Forward Analysis Results:  : All trades    @RB_15min    cand-1833
+
+   Test Criteria            Result   Comment
+
+1  Overall Profitability    Pass     Total Profit > 0. System is likely to perform profitable on unseen data
+
+2  Walk-Forward Efficiency   Pass     Walk-Forward Efficiency >= 60%. System is likely to perform in future at a rate between 60-100% of those achieved during optimization
+
+3  Consistency of Profits   Pass **     80%+ of walk-forward runs were profitable. System is most likely to be successful in future.
+
+4  Distribution of Profits        Not used  
+
+5  Maximum Drawdown              Not used  
+
+   OVERALL RESULT           PASSWalk-Forward Efficiency >= 0%. System is likely to perform in future

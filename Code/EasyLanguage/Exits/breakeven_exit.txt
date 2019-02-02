@@ -1,0 +1,6 @@
+input: threshold(0);
+
+if maxpositionprofit >= threshold then begin
+  if marketposition = 1 then sell next bar at entryprice stop;
+  if marketposition = -1 then buytocover next bar at entryprice stop;
+end;

@@ -1,0 +1,10 @@
+System: Trading Back to Fair Value Without Stops
+Philosophy: As long as you pick an instrument trading at an extreme, a trade back to fair value without stoploss is a high probabolity trade.
+Timeframe: Daily
+Instrument: @AD
+Long/Short: Long only
+Entry:
+  1- Price closes below the lower Bollinger Band
+  2- Price then closes back above the lower Bollinger Band( 130 length, 1.1 stdev)
+Exit: Enter using same entry up to 3 times and close all trades when profit reaches 1,250
+Stop Loss: none

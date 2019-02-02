@@ -1,0 +1,83 @@
+// Advanced Trade Management
+If marketposition <> 0 and
+   BarsSinceEntry > 2 and  { long enough }
+   OpenPositionProfit < 0  { not going in right direction }
+then sell this bar at close;
+
+
+2,3,4. // DOW filter, exclude a day of the week
+Input:
+DOW(1);   // optimize 1-5
+and dayofweek(date) = DOW   // the DOW filter condition
+// then
+if marketposition = 0
+  and dayofweek(date) <> DOW   // exclude worst perfomring day
+then buy next bar mybreakoutLong stop;
+
+5. // Exlcude Thursday & DOW sizing
+if marketposition = 0 and dayofweek(date) <> 4 then begin
+  If dayofweek(date) = 1 then buy 2 contracts next bar myBreakoutLong stop;
+  If dayofweek(date) = 2 then buy 2 contracts next bar myBreakoutLong stop;
+  If dayofweek(date) = 3 then buy 1 contract next bar myBreakoutLong stop;
+  If dayofweek(date) = 5 then buy 1 contract next bar myBreakoutLong stop;
+
+
+6. // Higher TimeFrame Condition
+if marketposition = 0
+  and Close < OpenD(1)       // higher timeframe condition
+then buy next bar myBreakoutLong stop;
+
+//or
+If marketposition = 0 then begin
+  // higher timeframe condition
+  if Close < OpenD(1) then buy 2 contracts next bar myBreakoutLong stop;
+end;
+If marketposition = 0 then begin
+  buy 1 contract next bar myBreakoutLong stop;
+end;
+
+
+
+7.
+if marketposition = 0
+  and ADX(30) < 20             // Filter added
+then buy next bar myBreakoytLong stop;
+
+8.
+if marketposition = 0
+  and ADX(30) of data2 < 20    // Filter on higher timeframe (daily)
+then buy next bar myBreakoytLong stop;
+
+
+9.  // avoid HOD, LOD entries
+if marketposition = 0
+  and High <> HighD(0)   // Not High of the day
+then buy next bar myBreakoutLong stop;
+
+10.  // T-segments
+input:
+tsegment(1);
+vars:
+timeFilter(false);
+if Tsegment = 1 then TimeFilter = time >= 830 and time <= 1045;  // seg 1 
+if Tsegment = 2 then TimeFilter = time >= 1045 and time <= 1300;  // seg 2 
+if Tsegment = 3 then TimeFilter = time >= 1300 and time <= 1515;  // seg 3 
+if marketposition = 0 amd TimeFilter = true
+then buy next bar myBreakoutLong stop;
+
+11.  // avoid T-segment
+var: timeFilter(false);
+timeFilter = time >= 830 and time <= 1045;  // T-segment 1
+if marketposition = 0 and TimeFilter = false
+then buy next bar myBreakoutLong stop;
+
+12.  // Enter if Close over previous bar BreakOut price
+if marketposition = 0
+  and close > myBreakoutLong[1]
+then buy this bar at close;
+
+13.  // Enter if Close greater max( previous bar BreakOut, previous bar close)
+if marketposition = 0
+  and close > myBreakoutLong[1]
+  and close > close[1]
+then buy this bar at close;

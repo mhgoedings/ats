@@ -1,0 +1,203 @@
+
+//*********************************
+// Optimization Inputs 
+//*********************************
+Inputs:
+  int DOW(1);
+//*********************************
+// Variable Definitions 
+//*********************************
+Vars:
+  int NATR(30),
+  double Fract(0.9),
+  int sl_switch(0),
+  int stop_loss(1000),
+  int mae(1000),
+  int pt_switch(0),
+  int profit_target(1000),
+  bool second_dataset(true),
+  int sess_start(930),
+  int sess_end(1600),
+  int trades_per_day(1),
+  int day_or_swing(0),
+  double stop_loss_px(0),
+  int L_S_B(1),
+  double poi_long(0),
+  double poi_short(0),
+  double BO_level_long(0),
+  double BO_level_short(0),
+  bool filter1_long(false),
+  bool filter1_short(false),
+  bool filter2_long(false),
+  bool filter2_short(false),
+  int CumMA_count(0),
+  double CumMA(0),
+  double diff1(0),
+  double diff2(0),
+  int entry_dir(0),
+  bool timeFilter(false);
+//*********************************
+// Array Definitions 
+//*********************************
+Arrays:
+;
+//*********************************
+// Prep Area 
+//*********************************
+
+//*********************************
+// Market Internals Definitions 
+//*********************************
+
+//*********************************
+// Strategy Logic 
+//*********************************
+if Date > ELDate(12,10,2010) and Date <= ELDate(08,23,2011) then
+    NATR = 45;
+    Fract = 0.60;
+    sl_switch = 0;
+    stop_loss = 1000;
+    mae = 1000;
+    pt_switch = 0;
+    profit_target = 1000;
+if Date > ELDate(08,23,2011) and Date <= ELDate(05,01,2012) then
+    NATR = 45;
+    Fract = 0.60;
+    sl_switch = 0;
+    stop_loss = 1000;
+    mae = 1000;
+    pt_switch = 0;
+    profit_target = 1000;
+if Date > ELDate(05,01,2012) and Date <= ELDate(01,24,2013) then
+    NATR = 45;
+    Fract = 0.60;
+    sl_switch = 0;
+    stop_loss = 1000;
+    mae = 1000;
+    pt_switch = 0;
+    profit_target = 1000;
+if Date > ELDate(01,24,2013) and Date <= ELDate(10,01,2013) then
+    NATR = 45;
+    Fract = 0.60;
+    sl_switch = 0;
+    stop_loss = 1000;
+    mae = 1000;
+    pt_switch = 0;
+    profit_target = 1000;
+if Date > ELDate(10,01,2013) and Date <= ELDate(06,24,2014) then
+    NATR = 45;
+    Fract = 0.70;
+    sl_switch = 0;
+    stop_loss = 1000;
+    mae = 1000;
+    pt_switch = 0;
+    profit_target = 1000;
+if Date > ELDate(06,24,2014) and Date <= ELDate(03,09,2015) then
+    NATR = 45;
+    Fract = 0.70;
+    sl_switch = 0;
+    stop_loss = 1000;
+    mae = 1000;
+    pt_switch = 0;
+    profit_target = 1000;
+if Date > ELDate(03,09,2015) and Date <= ELDate(11,18,2015) then
+    NATR = 20;
+    Fract = 0.70;
+    sl_switch = 0;
+    stop_loss = 1000;
+    mae = 1000;
+    pt_switch = 0;
+    profit_target = 1000;
+if Date > ELDate(11,18,2015) and Date <= ELDate(08,03,2016) then
+    NATR = 40;
+    Fract = 1.10;
+    sl_switch = 0;
+    stop_loss = 1000;
+    mae = 1000;
+    pt_switch = 0;
+    profit_target = 1000;
+if Date > ELDate(08,03,2016) and Date <= ELDate(04,17,2017) then
+    NATR = 20;
+    Fract = 0.70;
+    sl_switch = 0;
+    stop_loss = 1000;
+    mae = 1000;
+    pt_switch = 0;
+    profit_target = 1000;
+if Date > ELDate(04,19,2017) and Date <= ELDate(12,27,2017) then
+    NATR = 15;
+    Fract = 0.60;
+    sl_switch = 0;
+    stop_loss = 1000;
+    mae = 1000;
+    pt_switch = 0;
+    profit_target = 1000;
+    poi_long = LowD(0);
+    poi_short = HighD(0);
+    filter1_long = ( Close - CloseD(1) ) > 0;
+    filter1_short = ( CloseD(1) - Close ) > 0;
+If second_dataset = true then 
+begin
+  filter2_long = False;
+      filter2_long = close of data(2) < OpenD(0) ; 
+      filter2_short = close of data(2)  > OpenD(0) ;
+end; 
+Value1 = timetominutes(sess_start);
+Value2 = timetominutes(sess_end);
+Value3 = value2 - value1;
+Value4 = value3/3;
+timeFilter = True;
+stop_loss_px = stop_loss;
+if (mae < stop_loss) then
+  stop_loss_px = mae;
+BO_level_long = poi_long + (Fract * AvgTrueRange(NATR)); 
+BO_level_short = poi_short - (Fract * AvgTrueRange(NATR)); 
+diff1 = absvalue(close - BO_level_long);
+diff2 = absvalue(close - BO_level_short);
+if (diff1 <= diff2) then entry_dir = 1 else entry_dir = -1;
+SetStopPosition;
+If day_or_swing = 0 then setexitonclose; 
+//*********************************
+// Strategy Entry 
+//*********************************
+if entry_exit_both <> 2 then
+begin
+  if (MarketPosition = 0 or time = SessionEndTime(0, 1)) 
+    and filter1_long = true and filter2_long = true  
+    and modeLong
+    and dayofweek(date) = DOW
+    and entry_dir > 0 
+    and timeFilter = true
+    and EntriesToday(Date) < trades_per_day and (L_S_B = 1 or L_S_B = 3) then
+      buy next bar at BO_level_long stop; 
+  if (MarketPosition = 0 or time = SessionEndTime(0, 1)) 
+    and filter1_short = true and filter2_short = true 
+    and modeShort
+    and dayofweek(date) = DOW
+    and entry_dir < 0
+    and timeFilter = true
+    and EntriesToday(Date) < trades_per_day and (L_S_B = 2 or L_S_B = 3) then
+      sellshort next bar at BO_level_short stop; 
+end else
+begin
+  if (MarketPosition = 0 or time = SessionEndTime(0, 1)) 
+    and filter1_long = true and filter2_long = true  
+    and entry_dir > 0 
+    and timeFilter = true
+    and EntriesToday(Date) < trades_per_day and (L_S_B = 1 or L_S_B = 3) then
+      buy next bar at BO_level_long stop; 
+  if (MarketPosition = 0 or time = SessionEndTime(0, 1)) 
+    and filter1_short = true and filter2_short = true 
+    and entry_dir < 0
+    and timeFilter = true
+    and EntriesToday(Date) < trades_per_day and (L_S_B = 2 or L_S_B = 3) then
+      sellshort next bar at BO_level_short stop; 
+end;
+//*********************************
+// MI Premature Exit 
+//*********************************
+
+//*********************************
+// Strategy Exit 
+//*********************************
+If sl_switch = 1 then setstoploss (stop_loss_px); If pt_switch = 1 then setprofittarget (profit_target);

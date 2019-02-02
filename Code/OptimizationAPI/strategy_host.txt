@@ -1,0 +1,117 @@
+{ 
+--------------------------------------------------------------------------------------------------- 
+IDENTIFICATION 
+============== 
+Name:			_StrategyHost 
+Type:			Strategy 
+TS Version:		9.5 Build 21 or later 
+  
+--------------------------------------------------------------------------------------------------- 
+DOCUMENTATION 
+============= 
+This sample code demonstrates the use of the various events of the StrategyHost class. 
+   	 
+--------------------------------------------------------------------------------------------------- 
+HISTORY 
+======= 
+Date		Version		Task 
+---------	--------	------------------------------------------------------------------- 
+11/08/17	01.00.00	* Created 
+12/06/17	02.00.00	* Expanded comments 
+															 
+--------------------------------------------------------------------------------------------------- 
+TO DO LIST 
+========== 
+Date		Version		Task 
+---------	--------	------------------------------------------------------------------- 
+						 
+--------------------------------------------------------------------------------------------------- 
+} 
+ 
+#region - usings - 
+using elsystem; 
+using strategy; 
+#endregion 
+ 
+variables: 
+	StrategyHost SH(null), 
+	double MyAdjustedPrice(0); 
+ 
+//----------------------------------------------------------------------------- 
+//	This event if raised before an order is filled 
+//-----------------------------------------------------------------------------	 
+method void SH_PreFillOrder(object sender, StrategyFillOrderEventArgs args) 
+begin 
+	Print("SH.PreFillOrder: ", SH.Signals[args.SignalIndex].Name); 
+end;	 
+	 
+//----------------------------------------------------------------------------- 
+//	This event if raised when the strategy fills an order.  The details of the 
+//	order may be obtained through the args object properties.  Note how the 
+//	specific signal is obtained from the Signals collection of the SH based  
+//	upon the SignalIndex reported in the args. 
+//-----------------------------------------------------------------------------	 
+method void SH_OrderFill(object sender, StrategyFillOrderEventArgs args) 
+begin 
+	Print("SH.OrderFill: ", SH.Signals[args.SignalIndex].Name, 
+		" DT=", args.Date.ToString(),  
+		" $=", args.AvgPrice, 
+		" T$=", args.TargetPrice,  
+		" Q=", args.Quantity,  
+		" Psn=", (CurrentContracts * MarketPosition):0:0, 
+		" D=",args.OrderDirection.ToString(), 
+		" Now=", DateTime.Now.ToString()); 
+end;	 
+ 
+//----------------------------------------------------------------------------- 
+//	This event if raised before a new order is processed.  With this event 
+//	the code could cancel the new order before it is processed.  See the  
+//	various properties of the args. 
+//-----------------------------------------------------------------------------		 
+method void SH_PreNewOrder(object sender, StrategyNewOrderEventArgs args) 
+begin 
+	Print(string.Format("SH.PreNewOrder: Signal={0} CanCancel={1}",  
+		SH.Signals[args.SignalIndex].Name, args.Cancelable)); 
+end;	 
+ 
+//----------------------------------------------------------------------------- 
+//	This event if raised when a new order is processed.  With this event 
+//	the code could cancel the new order.  
+//  
+//	See the various properties of the args. 
+//-----------------------------------------------------------------------------		 
+method void SH_NewOrder(object sender, StrategyNewOrderEventArgs args) 
+begin 
+	Print(string.Format("SH.NewFill: Signal={0}",  
+		SH.Signals[args.SignalIndex].Name)); 
+end;	 
+ 
+once 
+begin 
+	ClearPrintLog(); 
+	Print("SH INIT"); 
+	//----------------------------------------------------------------------------- 
+	//	Create the strategy host object SH, indicate which events will be utilized 
+	//	and connect the SH. 
+	//-----------------------------------------------------------------------------		 
+	SH = StrategyHost.Create(); 
+	SH.OrderFill += SH_OrderFill; 
+	SH.PrefillOrder += SH_PreFillOrder; 
+	SH.NewOrder += SH_NewOrder; 
+	SH.PreNewOrder += SH_PreNewOrder; 
+	SH.Connect = true; 
+	 
+	//----------------------------------------------------------------------------- 
+	//	Note how various settings for backtesting and automation can be obtained. 
+	//	These settings cannot be altered, only reported. 
+	//-----------------------------------------------------------------------------		 
+	Print(SH.Backtesting.CommissionQty); 
+	Print(SH.Backtesting.LookInsideBarMode.ToString()); 
+	Print("Type: ", SH.Automation.Type.ToString(), " Mode=", SH.Automation.Mode.ToString()); 
+	Print("PyramidingMode: ", SH.Backtesting.PyramidingMode.ToString()); 
+end;	 
+ 
+//----------------------------------------------------------------------------- 
+//	End of code 
+//-----------------------------------------------------------------------------		 
+

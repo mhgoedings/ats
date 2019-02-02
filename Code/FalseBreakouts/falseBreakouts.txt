@@ -1,0 +1,119 @@
+input:
+  exclude_dow(false),
+  use_mq_trend(false),
+  falseBO_method(0),
+  falseBO_switch(0),     // dow: 1-5
+  mq_trend_switch(1),    // 1-9
+  fract(0.6);            // 0.6, 3.0, 0.15
+  
+
+vars:
+  submit_order(false),
+  cond_falseBO(false),
+  mq_trend(false),
+  TodaysOpen(0),
+  TodaysOpen_d2(0),
+  ATR(0),
+  ATR_d2(0),
+  myBreakoutLong(0),
+  myBreakoutLong_d2(0);
+  
+// Point of Initiation
+TodaysOpen = OpenD(0);
+TodaysOpen_d2 = OpenD(0) of data2;
+
+// Space data
+ATR = AvgTrueRange(40);
+ATR_d2 = AvgTrueRange(40) of data2;
+
+// Breakout Level (POI + Space)
+myBreakoutLong = TodaysOpen + (fract * ATR);
+myBreakoutLong_d2 = TodaysOpen_d2 + (fract * ATR_d2);
+
+// false Breakout strategies
+if use_mq_trend then begin
+  switch mq_trend_switch begin
+    case 1 :
+      mq_trend =  ADX(14) > 20;
+    case 2 :
+      mq_trend =  ADX(14) > 25;
+    case 3 :
+      mq_trend =  ADX(14) > 30;
+    case 4 :
+      mq_trend =  ADX(20) > 20;
+    case 5 :
+      mq_trend =  ADX(20) > 25;
+    case 6 :
+      mq_trend =  ADX(20) > 30;
+    case 7 :
+      mq_trend =  ADX(25) > 20;
+    case 8 :
+      mq_trend =  ADX(25) > 25;
+    case 9 :
+      mq_trend =  ADX(25) > 30;
+  end;
+end;
+
+cond_falseBO = false;
+switch falseBO_method begin
+  case 0: begin  // do nothing
+    cond_falseBO = true;
+  end;
+  case 1: begin   // test DOW
+    cond_falseBO = (dayofweek(date) = falseBO_switch);
+  end;
+  case 3: begin   // bigger picture 
+    switch falseBO_switch begin
+      case 1: 
+        cond_falseBO = (close < closeD(1));
+      case 2: 
+        cond_falseBO = (close > closeD(1));
+      case 3: 
+        cond_falseBO = (close < openD(1));
+      case 4: 
+        cond_falseBO = (close > openD(1));
+      case 5: 
+        cond_falseBO = (close < openD(0));
+      case 6: 
+        cond_falseBO = (close > openD(0));
+      case 7: 
+        cond_falseBO = (closeD(1) < openD(1));
+      case 8: 
+        cond_falseBO = (closeD(1) > openD(1));
+      case 9: 
+        cond_falseBO = (closeD(1) < openD(0));
+      case 10: 
+        cond_falseBO = (closeD(1) > openD(0));
+      case 11: 
+        cond_falseBO = (openD(0) < openD(1));
+      case 12: 
+        cond_falseBO = (openD(0) > openD(1));
+    end;
+  end;
+end;
+//  case bonus2:    // Multi Market
+//   cond_falseBO = close > myBreakoutLong[1] and
+//                  close of data2 > myBreakoutLong_d2[1] and
+//                  close > close[1] and                           // entry bar quality
+//                  close of data2 ? close[1] of data2;
+  
+// Breakout entry
+submit_order = false;
+if marketposition = 0 and
+   cond_falseBO = true
+then
+  if use_mq_trend = true and mq_trend = true then
+    submit_order = true
+  else
+    submit_order = true;
+
+If exclude_dow = true then begin
+  If dayofweek(date) = 3 then submit_order = false;
+  If dayofweek(date) = 5 then submit_order = false;
+end;
+
+if submit_order = true then
+  buy this bar at close;
+  
+If marketposition <> 0 then setexitonclose;
+setstoploss(600);

@@ -1,0 +1,529 @@
+{ 
+Design & Prototype BOS code v1.6.1, May 2018
+}
+ 
+Inputs:
+{GENERAL SETUP}
+int L_S_B(1),           // 1=LONG strategies only, 2=SHORT strategies only, 3=LONG and SHORT strategies 
+
+{BREAKOUT MODEL SETUP}
+int POI_Switch(1),    // 1-12 STEP 1 {1-4 BASIC POIs, 5-8 ADVANCED POIs, 9-12 MOVING AVERAGE POIs}  
+int POI_N1(1),        // 1-15 STEP 1 {FOR POI_SWITCH 9-12 ONLY}
+int NATR(9),          // 5-60 STEP 5
+double  Fract(1.3),   // 0.6 - 3 STEP 0.1 or 0.15 (or use F-SEGMENT concept)
+
+{FILTER MAIN TIMEFRAME SETUP}
+int Filter1_Switch(15), // 1-40   {1-8 VOLATILITY, 9-16 TREND INDICATORS, 17-24 PULLBACKS, 25-32 PRICE ACTION, 33-40 VOLUME}
+int Filter1_N1(8),      // 1-20 step 1
+int Filter1_N2(16),     // 1-20 step 1 
+ 
+{FILTER SECONDARY TIMEFRAME SETUP == VOLUNTARY, set Filter2_Switch = 0 to skip 2nd timeframe filter}
+int Filter2_Switch(16),// 1-40   {1-8 VOLATILITY, 9-16 TREND INDICATORS, 17-24 PULLBACKS, 25-32 PRICE ACTION, 33-40 VOLUME}
+int Filter2_N1(4),     // 1-20 step 1 
+int Filter2_N2(15),    // 1-20 step 1
+
+{TIME FILTER SETUP}
+int Tsegment(0),     // 0 = full range, 1=first third of the session, 2=middle third, 3=last third of the session
+
+{STOP-LOSS AND EXIT SETUP}
+int SL_switch(0),  // 0 = NO stop-loss, 1 = stop-loss used
+int SL(1000),      // use only if SL_switch = 1
+int PT_switch(0),  // 0 = NO profit-target, 1 = profit-target used
+int PT(1000);      // use only if PT_switch = 1
+
+vars:
+bool SecondDataYesNo(true),   // true or false
+int sess_start(<START>),    // beginning time of the trading session
+int sess_end(<END>),     // ending time of the trading session
+int timeframe(<BARSIZE>),      // the main timeframe you are using (in minutes)
+int TradesPerDay(1),    // maximum allowed trades per day (start with 1 only, recommended no more than 3) 
+int DaytradingORswing(0); // 0=DAYTRADING strategy (EOD exit), 1=SWING strategy
+
+vars: 
+double POI_Long(0), double POI_Short(0),
+double BO_Level_LONG(0), double BO_Level_SHORT(0),
+bool Filter1_Long(false), bool Filter1_Short(false),
+bool Filter2_Long(false), bool Filter2_Short(false), 
+int CumMA_count(0), double CumMA(0),
+double diff1(0), double diff2(0),
+int FinalEntryDirection(0), bool TimeFiltr(false);
+
+{***** PART I: BREAKOUT LEVEL CALCULATION (as POI +/- DISTANCE) *****}
+
+{1. POINT OF INITIATION DEFINITION}
+Switch ( POI_Switch )
+Begin
+{BASIC POIs}
+  Case 1 : begin
+    POI_Long = CloseD(1);
+    POI_Short = POI_Long;
+  end;
+  Case 2 : begin
+    POI_Long = OpenD(0);
+    POI_Short = POI_Long;
+  end;
+  Case 3 : begin
+    POI_Long = LowD(0);
+    POI_Short = HighD(0);
+  end;
+  Case 4 : begin
+    POI_Long = LowD(1);
+    POI_Short = HighD(1);
+  end;
+{Advanced POIs}
+    Case 5 : begin
+       POI_Long = minList( CloseD(1), OpenD(0) ); 
+       POI_Short = maxList( CloseD(1), OpenD(0) );
+    end;
+    Case 6 : begin
+       POI_Long = maxList( CloseD(1), OpenD(0) ); 
+       POI_Short = minList( CloseD(1), OpenD(0) );
+    end;  
+    Case 7 : begin
+       POI_Long = maxList( CloseD(1), LowD(0) ); 
+       POI_Short = minList( CloseD(1), HighD(0) );
+    end; 
+    Case 8 : Begin {Cumulative Moving Average - a proprietary indicator}
+      If date <> date[1] then CumMA_count = 0;
+        CumMA_count = CumMA_count + 1;
+      CumMA = average((H+L)/2 , CumMA_count);
+        POI_Long = CumMA; POI_Short = CumMA;
+    end;
+{Moving Average POIs}    
+    Case 9 : Begin
+        POI_Long = Xaverage(C, POI_N1 * 5)[1]; 
+        POI_Short = POI_Long;    
+    end;
+    Case 10 : Begin
+    POI_Long = Xaverage(L, POI_N1 * 5); 
+        POI_Short = Xaverage(H, POI_N1 * 5);       
+    end;     
+    Case 11 : Begin
+    POI_Long = Xaverage(MedianPrice, POI_N1 * 5 )[1]; 
+        POI_Short = POI_Long;     
+  end;
+    Case 12 : Begin
+        POI_Long = bollingerband(C, 3 * POI_N1, -1.5)[1];
+        POI_Short = bollingerband(C, 3 * POI_N1, 1.5)[1];
+    end;       
+End;
+ 
+{ 2. ADDING DISTANCE AS VOLATILITY MULTIPLICATION AND CALCULATING THE FINAL BREAKOUT LEVEL }  
+BO_level_LONG = POI_Long + (Fract * AvgTrueRange(NATR) ); 
+BO_Level_SHORT = POI_Short - (Fract * AvgTrueRange(NATR) ); 
+
+
+{***** PART II: FILTERS *****}
+  
+{ Filter for the MAIN timeframe (0 = No Filter) } 
+Switch (Filter1_Switch) 
+Begin 
+  Case 0: begin
+    Filter1_Long = True;
+    Filter1_Short = True;
+  end;
+  { Volatility Based Filters }
+  Case 1 : begin 
+    Filter1_Long = AvgTrueRange(3 * Filter1_N1) > AvgTrueRange(5 * Filter1_N2) ; 
+    Filter1_Short = AvgTrueRange(3 * Filter1_N1) > AvgTrueRange(5 * Filter1_N2) ; 
+  end; 
+  Case 2 : begin 
+    Filter1_Long = AvgTrueRange(3 * Filter1_N1) <= AvgTrueRange(5 * Filter1_N2) ; 
+    Filter1_Short = AvgTrueRange(3 * Filter1_N1) <= AvgTrueRange(5 * Filter1_N2) ; 
+  end; 
+  Case 3 : begin 
+    Filter1_Long = AvgTrueRange(3 * Filter1_N1) < AvgTrueRange(5 * Filter1_N2) ; 
+    Filter1_Short = AvgTrueRange(3 * Filter1_N1) > AvgTrueRange(5 * Filter1_N2) ;
+  end; 
+  Case 4 : begin 
+    Filter1_Long = AvgTrueRange(3 * Filter1_N1) > AvgTrueRange(5 * Filter1_N2) ; 
+    Filter1_Short = AvgTrueRange(3 * Filter1_N1) < AvgTrueRange(5 * Filter1_N2) ;
+  end; 
+  Case 5 : begin
+      Filter1_Long  = Range > AvgTrueRange(Filter1_N1 * 5);
+        Filter1_Short = Range > AvgTrueRange(Filter1_N1 * 5);
+    end;
+    Case 6 : begin
+        Filter1_Long  = Range <= AvgTrueRange(Filter1_N1 * 5);
+        Filter1_Short = Range <= AvgTrueRange(Filter1_N1 * 5);
+    end;    
+    Case 7 : begin 
+        Filter1_Long  = (Filter1_N2 * 0.2) * Range > AvgTrueRange(Filter1_N1 * 5);
+        Filter1_Short = (Filter1_N2 * 0.2) * Range >  AvgTrueRange(Filter1_N1 * 5);
+    end;
+    Case 8 : begin 
+        Filter1_Long  = Range <= (Filter1_N2 * 0.2) * AvgTrueRange(Filter1_N1 * 5);
+        Filter1_Short = Range <= (Filter1_N2 * 0.2) * AvgTrueRange(Filter1_N1 * 5);
+  end;
+  { Trend Indicator Based Filters }
+    Case 9 : begin     
+        Filter1_Long =  DMIplus( Filter1_N1 * 10 ) < DMIminus(Filter1_N1 * 10);
+        Filter1_Short = DMIplus(Filter1_N1 * 10) > DMIminus(Filter1_N1 * 10);
+    end;
+    Case 10 : begin     
+        Filter1_Long =  DMIplus( Filter1_N1 * 10 ) > DMIminus(Filter1_N1 * 10);
+        Filter1_Short = DMIplus(Filter1_N1 * 10) < DMIminus(Filter1_N1 * 10);    
+    end;   
+    Case 11 : begin     
+        Filter1_Long =  DMIplus( Filter1_N1 * 10 ) < DMIminus(Filter1_N2 * 10);
+        Filter1_Short = DMIplus(Filter1_N1 * 10) > DMIminus(Filter1_N2 * 10);
+    end;
+    Case 12 : begin     
+        Filter1_Long =  DMIplus( Filter1_N1 * 10 ) > DMIminus(Filter1_N2 * 10);
+        Filter1_Short = DMIplus(Filter1_N1 * 10) < DMIminus(Filter1_N2 * 10);    
+    end;   
+    Case 13 : begin     
+        Filter1_Long =  DMIplus( Filter1_N1 * 5 ) < DMIminus(Filter1_N2 * 5 );
+        Filter1_Short = DMIplus(Filter1_N1 * 5 ) > DMIminus(Filter1_N2 * 5 );
+    end;
+    Case 14 : begin     
+        Filter1_Long =  DMIplus( Filter1_N1 * 5 ) > DMIminus(Filter1_N2 * 5 );
+        Filter1_Short = DMIplus(Filter1_N1 * 5 ) < DMIminus(Filter1_N2 * 5 );    
+    end;   
+    Case 15 : begin    
+        Filter1_Long =  ADX(Filter1_N2 * 5) > Filter1_N1 * 2;
+        Filter1_Short = Filter1_Long;
+    end; 
+    Case 16 : begin  
+        Filter1_Long =  ADX(Filter1_N2 * 5) < Filter1_N1 * 2;
+        Filter1_Short = Filter1_Long;
+    end; 
+  { Pullback / Correction Based Filters }   
+  Case 17 : begin 
+    Filter1_Long = TrueRange * (Filter1_N1 * 0.15) >= highest( H, Filter1_N2) - C; 
+    Filter1_Short = TrueRange * (Filter1_N1 * 0.15) <= C - lowest(L, Filter1_N2); 
+  end; 
+  Case 18 : begin 
+    Filter1_Long = TrueRange * (Filter1_N1 * 0.15) <= highest( H, Filter1_N2) - C; 
+    Filter1_Short = TrueRange * (Filter1_N1 * 0.15) >= C - lowest(L, Filter1_N2); 
+  end;  
+  Case 19 : begin 
+    Filter1_Long = AvgTrueRange(Filter1_N1 * 2) > CloseD(1) - Lowest(C, Filter1_N2) ; 
+    Filter1_Short = AvgTrueRange(Filter1_N1  * 2) <  Highest(C, Filter1_N2) - CloseD(1) ; 
+  end;  
+  Case 20 : begin 
+    Filter1_Long = AvgTrueRange(Filter1_N1 * 2) < CloseD(1) - Lowest(C, Filter1_N2) ; 
+    Filter1_Short = AvgTrueRange(Filter1_N1  * 2) >  Highest(C, Filter1_N2) - CloseD(1) ; 
+  end; 
+  Case 21 :  begin 
+        Filter1_Long = ( Close - CloseD(1) ) > 0;
+        Filter1_Short = ( CloseD(1) - Close ) > 0;
+    end;
+    Case 22 :  begin 
+        Filter1_Long = ( Close - CloseD(1) ) < 0;
+        Filter1_Short = ( CloseD(1) - Close ) < 0;
+    end;
+  Case 23 : begin 
+    Filter1_Long = AvgTrueRange(Filter1_N1 * 3) < CloseD(1) - LowD(0); 
+    Filter1_Short = AvgTrueRange(Filter1_N1 * 3) < HighD(0) - CloseD(1);    
+  end; 
+  Case 24 : begin 
+    Filter1_Long = AvgTrueRange(Filter1_N1 * 3) > CloseD(1) - LowD(0); 
+    Filter1_Short = AvgTrueRange(Filter1_N1 * 3) > HighD(0) - CloseD(1);   
+  end; 
+  { Price Action Filters }
+  Case 25 : begin 
+      Filter1_Long = (C - lowest(L,Filter1_N2 ) ) > ( AvgTrueRange ( 3*Filter1_N1 )  );
+        Filter1_Short = (C - highest(H,Filter1_N2 ) ) < - ( AvgTrueRange ( 3*Filter1_N1 ) ); 
+  end;  
+  Case 26 : begin 
+      Filter1_Long = (C - lowest(L,Filter1_N2 ) ) < ( AvgTrueRange ( 3*Filter1_N1 )  );
+        Filter1_Short = (C - highest(H,Filter1_N2  ) ) > - ( AvgTrueRange ( 3*Filter1_N1 ) ); 
+  end;  
+  Case 27 : begin 
+    Filter1_Long = L[Filter1_N1] >= CloseD(1); 
+    Filter1_Short = H[Filter1_N1] <= CloseD(1); 
+  end; 
+  Case 28 : begin 
+    Filter1_Long = close > OpenD(0) ; 
+    Filter1_Short = close < OpenD(0) ; 
+  end; 
+  Case 29 : begin 
+    Filter1_Long = close < OpenD(0) ; 
+    Filter1_Short = close > OpenD(0) ; 
+  end; 
+  Case 30 : begin 
+    Filter1_Long = TrueRange >= OpenD(0) - HighD(Filter1_N1); 
+    Filter1_Short = TrueRange <= OpenD(0) - LowD(Filter1_N1); 
+  end; 
+  Case 31 : begin 
+    Filter1_Long = LowD(0) >= CloseD(1) - ((Filter1_N1 * 50) / BigPointValue ); 
+    Filter1_Short = HighD(0) <= closeD(1) + ((Filter1_N1 * 50) / BigPointValue ); 
+  end; 
+  Case 32 : begin 
+    Filter1_Long = LowD(0) <= CloseD(1) - ((Filter1_N1 * 50) / BigPointValue ); 
+    Filter1_Short = HighD(0) >= closeD(1) + ((Filter1_N1 * 50) / BigPointValue ); 
+  end;
+  { Volume Based Filters }    
+    Case 33 : begin  
+      Filter1_Long =  Volume  > average(volume, 3 * Filter1_N1) ; 
+        Filter1_Short = Filter1_Long;
+    end; 
+    Case 34 : begin  
+        Filter1_Long =  Volume  < average(volume, 3 * Filter1_N1); 
+        Filter1_Short = Filter1_Long; 
+    end;
+    Case 35 : begin   
+        Filter1_Long =  Volume  > average(volume, 3 * Filter1_N1) ; 
+        Filter1_Short = Volume  > average(volume, 3 * Filter1_N2) ;
+    end; 
+    Case 36 : begin  
+        Filter1_Long =  Volume  < average(volume, 3 * Filter1_N1); 
+        Filter1_Short =  Volume  < average(volume, 3 * Filter1_N2);  
+    end;
+    Case 37 : begin  
+        Filter1_Long =  Volume * (0.1 * Filter1_N2) > average(volume, 2 * Filter1_N1) ; 
+        Filter1_Short = Volume * (0.1 * Filter1_N2) > average(volume, 2 * Filter1_N1) ; 
+    end;
+    Case 38 : begin  
+        Filter1_Long =  Volume * (0.1 * Filter1_N2) < average(volume, 2 * Filter1_N1) ; 
+        Filter1_Short = Volume * (0.1 * Filter1_N2) < average(volume, 2 * Filter1_N1) ;  
+    end;            
+    Case 39 : begin  
+        Filter1_Long =  Volume < Volume[1];
+        Filter1_Short = Volume < Volume[1];
+    end;
+    Case 40 : begin  
+        Filter1_Long =  Volume > Volume[1];
+        Filter1_Short = Volume > Volume[1]; 
+    end; 
+End; 
+
+{ Filter for the SECONDARY timeframe (0 = No Filter = no Secondary timeframe will be used) }
+
+If SecondDataYesNo = true then begin //this part didn´t use to be here bud had to be added because of TS bug
+  Switch (Filter2_Switch) 
+  Begin 
+    Case 0: begin
+      Filter2_Long = True;
+      Filter2_Short  = True;
+    end;
+    { Volatility Based Filters }
+    Case 1 : begin 
+      Filter2_Long = AvgTrueRange(3 * Filter2_N1)  of data(2) > AvgTrueRange(5 * Filter2_N2) of data(2); 
+      Filter2_Short  = AvgTrueRange(3 * Filter2_N1) of data(2) > AvgTrueRange(5 * Filter2_N2) of data(2) ; 
+    end; 
+    Case 2 : begin 
+      Filter2_Long = AvgTrueRange(3 * Filter2_N1) of data(2) <= AvgTrueRange(5 * Filter2_N2) of data(2) ; 
+      Filter2_Short  = AvgTrueRange(3 * Filter2_N1) of data(2) <= AvgTrueRange(5 * Filter2_N2) of data(2) ; 
+    end; 
+    Case 3 : begin 
+      Filter2_Long = AvgTrueRange(3 * Filter2_N1) of data(2) < AvgTrueRange(5 * Filter2_N2) of data(2) ; 
+      Filter2_Short  = AvgTrueRange(3 * Filter2_N1) of data(2) > AvgTrueRange(5 * Filter2_N2) of data(2) ;
+    end; 
+    Case 4 : begin 
+      Filter2_Long = AvgTrueRange(3 * Filter2_N1) of data(2) > AvgTrueRange(5 * Filter2_N2) of data(2) ; 
+      Filter2_Short  = AvgTrueRange(3 * Filter2_N1) of data(2) < AvgTrueRange(5 * Filter2_N2) of data(2) ;
+    end; 
+    Case 5 : begin
+        Filter2_Long  = Range of data(2) > AvgTrueRange(Filter2_N1 * 5) of data(2);
+          Filter2_Short  = Range of data(2) > AvgTrueRange(Filter2_N1 * 5) of data(2);
+      end;
+      Case 6 : begin
+          Filter2_Long  = Range of data(2) <= AvgTrueRange(Filter2_N1 * 5) of data(2);
+          Filter2_Short  = Range of data(2) <= AvgTrueRange(Filter2_N1 * 5) of data(2);
+      end;    
+      Case 7 : begin 
+          Filter2_Long  = (Filter2_N2 * 0.2) * Range of data(2) >  AvgTrueRange(Filter2_N1 * 5) of data(2);
+          Filter2_Short  = (Filter2_N2 * 0.2) * Range of data(2) >  AvgTrueRange(Filter2_N1 * 5) of data(2);
+      end;
+      Case 8 : begin 
+          Filter2_Long  = Range of data(2) <= (Filter2_N2 * 0.2) * AvgTrueRange(Filter2_N1 * 5) of data(2);
+          Filter2_Short  = Range of data(2) <= (Filter2_N2 * 0.2) * AvgTrueRange(Filter2_N1 * 5) of data(2);
+    end;
+    { Trend Indicator Based Filters }
+      Case 9 : begin     
+          Filter2_Long =  DMIplus( Filter2_N1 * 10 ) of data(2) < DMIminus(Filter2_N1 * 10) of data(2);
+          Filter2_Short  = DMIplus(Filter2_N1 * 10) of data(2) > DMIminus(Filter2_N1 * 10) of data(2);
+      end;
+      Case 10 : begin     
+          Filter2_Long =  DMIplus( Filter2_N1 * 10 ) of data(2) > DMIminus(Filter2_N1 * 10) of data(2);
+          Filter2_Short  = DMIplus(Filter2_N1 * 10) of data(2) < DMIminus(Filter2_N1 * 10) of data(2);    
+      end;   
+      Case 11 : begin     
+          Filter2_Long =  DMIplus( Filter2_N1 * 10 ) of data(2) < DMIminus(Filter2_N2 * 10) of data(2);
+          Filter2_Short  = DMIplus(Filter2_N1 * 10) of data(2) > DMIminus(Filter2_N2 * 10) of data(2);
+      end;
+      Case 12 : begin     
+          Filter2_Long =  DMIplus( Filter2_N1 * 10 ) of data(2) > DMIminus(Filter2_N2 * 10) of data(2);
+          Filter2_Short  = DMIplus(Filter2_N1 * 10) of data(2) < DMIminus(Filter2_N2 * 10) of data(2);    
+      end;   
+      Case 13 : begin     
+          Filter2_Long =  DMIplus( Filter2_N1 * 5 ) of data(2) < DMIminus(Filter2_N2 * 5 ) of data(2);
+          Filter2_Short  = DMIplus(Filter2_N1 * 5 ) of data(2) > DMIminus(Filter2_N2 * 5 ) of data(2);
+      end;
+      Case 14 : begin     
+          Filter2_Long =  DMIplus( Filter2_N1 * 5 ) of data(2) > DMIminus(Filter2_N2 * 5 ) of data(2);
+          Filter2_Short  = DMIplus(Filter2_N1 * 5 ) of data(2) < DMIminus(Filter2_N2 * 5 ) of data(2);    
+      end;   
+      Case 15 : begin    
+          Filter2_Long =  ADX(Filter2_N2 * 5) of data(2) > Filter2_N1 * 2;
+          Filter2_Short  = Filter2_Long;
+      end; 
+      Case 16 : begin  
+          Filter2_Long =  ADX(Filter2_N2 * 5) of data(2) < Filter2_N1 * 2;
+          Filter2_Short  = Filter2_Long;
+      end; 
+    { Pullback / Correction Based Filters }   
+    Case 17 : begin 
+      Filter2_Long = TrueRange of data(2) * (Filter2_N1 * 0.15) > highest( H, Filter2_N2) of data(2) - C of data(2);  
+      Filter2_Short  = TrueRange of data(2) * (Filter2_N1 * 0.15) < C of data(2) - lowest(L, Filter2_N2) of data(2); 
+    end; 
+    Case 18 : begin 
+      Filter2_Long = TrueRange of data(2) * (Filter2_N1 * 0.15) <= highest( H, Filter2_N2) of data(2) - C of data(2); 
+      Filter2_Short  = TrueRange of data(2) * (Filter2_N1 * 0.15) >= C of data(2) - lowest(L, Filter2_N2) of data(2); 
+    end;  
+    Case 19 : begin 
+      Filter2_Long = AvgTrueRange(Filter2_N1 * 2) of data(2) > CloseD(1) - Lowest(C, Filter2_N2) of data(2) ; 
+      Filter2_Short  = AvgTrueRange(Filter2_N1  * 2) of data(2) <  Highest(C, Filter2_N2) of data(2) - CloseD(1); 
+    end;  
+    Case 20 : begin 
+      Filter2_Long = AvgTrueRange(Filter2_N1 * 2) of data(2) < CloseD(1) - Lowest(C, Filter2_N2) of data(2); 
+      Filter2_Short  = AvgTrueRange(Filter2_N1  * 2) of data(2) >  Highest(C, Filter2_N2) of data(2) - CloseD(1) ; 
+    end; 
+    Case 21 :  begin 
+          Filter2_Long = ( Close of data(2) - CloseD(1) ) > 0;
+          Filter2_Short  = ( CloseD(1) of data(2) - Close ) > 0;
+      end;
+      Case 22 :  begin 
+          Filter2_Long = ( Close of data(2) - CloseD(1) ) < 0;
+          Filter2_Short  = ( CloseD(1) of data(2) - Close ) < 0;
+      end;
+    Case 23 : begin 
+      Filter2_Long = AvgTrueRange(Filter2_N1 * 3) of data(2) < CloseD(1) - LowD(0); 
+      Filter2_Short  = AvgTrueRange(Filter2_N1 * 3) of data(2) < HighD(0) - CloseD(1);   
+    end; 
+    Case 24 : begin 
+      Filter2_Long = AvgTrueRange(Filter2_N1 * 3) of data(2) > CloseD(1) - LowD(0); 
+      Filter2_Short  = AvgTrueRange(Filter2_N1 * 3) of data(2) > HighD(0) - CloseD(1);  
+    end; 
+    { Price Action Filters }
+    Case 25 : begin 
+        Filter2_Long = (C of data(2) - lowest(L,Filter2_N2 ) of data(2) ) > ( AvgTrueRange ( 3*Filter2_N1 ) of data(2)  );
+          Filter2_Short = (C of data(2) - highest(H,Filter2_N2 ) of data(2) ) < - ( AvgTrueRange ( 3*Filter2_N1 ) of data(2) ); 
+    end;  
+    Case 26 : begin 
+        Filter2_Long = (C of data(2) - lowest(L,Filter2_N2 ) of data(2) ) < ( AvgTrueRange ( 3*Filter2_N1 ) of data(2)  );
+          Filter2_Short = (C of data(2) - highest(H,Filter2_N2  ) of data(2) ) > - ( AvgTrueRange ( 3*Filter2_N1 ) of data(2) ); 
+    end; 
+    Case 27 : begin 
+      Filter2_Long = L[Filter2_N1] of data(2) >= CloseD(1); 
+      Filter2_Short  = H[Filter2_N1] of data(2) <= CloseD(1); 
+    end; 
+    Case 28 : begin 
+      Filter2_Long = close of data(2) > OpenD(0) ; 
+      Filter2_Short  = close of data(2) < OpenD(0) ; 
+    end; 
+    Case 29 : begin 
+      Filter2_Long = close of data(2) < OpenD(0) ; 
+      Filter2_Short  = close of data(2)  > OpenD(0) ; 
+    end; 
+    Case 30 : begin 
+      Filter2_Long = TrueRange of data(2) >= OpenD(0) - HighD(Filter2_N1); 
+      Filter2_Short  = TrueRange of data(2) <= OpenD(0) - LowD(Filter2_N1); 
+    end; 
+    Case 31 : begin 
+      Filter2_Long = (HighD(0) - LowD(0)) * Bigpointvalue < Filter2_N1*5; 
+      Filter2_Short  = Filter2_Long; 
+    end;  
+    Case 32 : begin 
+      Filter2_Long = (HighD(0) - LowD(0)) * Bigpointvalue > Filter2_N1*5; 
+      Filter2_Short  = Filter2_Long; 
+    end; 
+    { Volume Based Filters }    
+      Case 33 : begin  
+        Filter2_Long =  Volume of data(2)  > average(volume, 3 * Filter2_N1) of data(2) ; 
+          Filter2_Short  = Filter1_Long;
+      end; 
+      Case 34 : begin  
+          Filter2_Long =  Volume of data(2)  < average(volume, 3 * Filter2_N1) of data(2); 
+          Filter2_Short  = Filter1_Long; 
+      end;
+      Case 35 : begin   
+          Filter2_Long =  Volume of data(2)  > average(volume, 3 * Filter2_N1) of data(2) ; 
+          Filter2_Short  = Volume of data(2)  > average(volume, 3 * Filter2_N2) of data(2) ;
+      end; 
+      Case 36 : begin  
+          Filter2_Long =  Volume of data(2)  < average(volume, 3 * Filter2_N1) of data(2); 
+          Filter2_Short  =  Volume of data(2)  < average(volume, 3 * Filter2_N2) of data(2);  
+      end;
+      Case 37 : begin  
+          Filter2_Long =  Volume of data(2) * (0.1 * Filter2_N2) > average(volume, 2 * Filter2_N1) of data(2); 
+          Filter2_Short  = Volume of data(2) * (0.1 * Filter2_N2) > average(volume, 2 * Filter2_N1) of data(2) ; 
+      end;
+      Case 38 : begin  
+          Filter2_Long =  Volume of data(2) * (0.1 * Filter2_N2) < average(volume, 2 * Filter2_N1) of data(2); 
+          Filter2_Short  = Volume of data(2) * (0.1 * Filter2_N2) < average(volume, 2 * Filter2_N1) of data(2) ;  
+      end;            
+      Case 39 : begin  
+          Filter2_Long =  Volume of data(2) < Volume[1] of data(2);
+          Filter2_Short  = Volume of data(2) < Volume[1] of data(2);
+      end;
+      Case 40 : begin  
+          Filter2_Long =  Volume of data(2)> Volume[1] of data(2);
+          Filter2_Short  = Volume of data(2)> Volume[1] of data(2); 
+      end; 
+  End;
+END; 
+
+{ TIME FILTER calculation - T-Segmentation calculation }
+
+//calculate the length of the session in minutes
+Value1 = timetominutes(sess_start); Value2 = timetominutes(sess_end); Value3 = value2 - value1;
+
+//calculate the leght of a T-Segment in minutes
+Value4 = value3/3;
+
+//Calculate the appropriate T-Segment time range
+Switch (Tsegment) 
+Begin 
+  Case 0: begin
+    TimeFiltr = True;
+    end;
+    Case 1 : begin  
+    TimeFiltr = time > sess_start and time <= calctime(sess_start, value4);
+    end; 
+    Case 2 : begin  
+    TimeFiltr = time > calctime(sess_start, value4) and time <= calctime(sess_start, (2 * value4) );
+    end;     
+    Case 3 : begin  
+    TimeFiltr = time > calctime(sess_start, (2 * value4)) and time < calctime(sess_end,-timeframe);
+    end;     
+End; 
+
+
+{***** PART III: EXECUTION *****}
+ 
+//Protection that there are never both LONG and SHORT stop orders placed at the same time 
+diff1 = absvalue(close - BO_Level_LONG);
+diff2 = absvalue(close - BO_Level_SHORT);
+//always pick only one entry, the closer one to the actual market
+if (diff1 <= diff2) then FinalEntryDirection = 1 else FinalEntryDirection = -1;
+   
+{Executes LONG entries} 
+if (MarketPosition = 0 or time = SessionEndTime(0, 1)) 
+  and Filter1_Long = true and Filter2_Long = true  
+  and FinalEntryDirection > 0 
+  and TimeFiltr = true
+  and EntriesToday(Date) < TradesPerDay and (L_S_B = 1 or L_S_B = 3) then
+    buy next bar at BO_Level_LONG stop; 
+ 
+{Executes SHORT entries} 
+if (MarketPosition = 0 or time = SessionEndTime(0, 1)) 
+  and Filter1_Short = true and Filter2_Short = true 
+  and FinalEntryDirection < 0
+  and TimeFiltr = true
+  and EntriesToday(Date) < TradesPerDay and (L_S_B = 2 or L_S_B = 3) then
+    sellshort next bar at BO_Level_SHORT stop; 
+
+
+{***** PART IV: STOP-LOSS & EXITS *****}
+ 
+{ StopLoss } 
+If SL_switch = 1 then setstoploss (SL); 
+ 
+{ Profit-target - for SWING strategies only } 
+If PT_switch = 1 then setprofittarget (PT);
+ 
+{ End of Day (EOD) exit (for daytrading strategies only)}
+If DaytradingORswing = 0 then setexitonclose; 

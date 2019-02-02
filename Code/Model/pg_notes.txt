@@ -1,0 +1,7 @@
+SELECT MAX(the_primary_key) FROM the_table;
+
+SELECT nextval('the_primary_key_sequence');
+
+If the first value is higher than the second value, your sequence is out of sync. Back up your PG database (just in case), then run thisL
+
+SELECT setval('the_primary_key_sequence', (SELECT MAX(the_primary_key) FROM the_table)+1);

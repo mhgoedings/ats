@@ -1,0 +1,103 @@
+cusing elsystem;
+using elsystem.windows.forms;
+using elsystem.drawing;
+
+inputs:
+   string SymbolToUse("GOOG"),
+   int    MinuteInterval(5),a
+   string LastDate("10/31/2013"),
+   int    DaysBack(30),
+   string ResultsFile("C:\ZTS\Dropbox\Business\ats\Logs\Results.csv");
+
+vars:
+   Form form1(null),
+   tsopt.Optimizer optimizer(null);
+
+method void InitApp( elsystem.Object sender, elsystem.InitializedEventArgs args ) 
+vars:
+   Button startButton;
+begin
+   // Initialize optimizer
+   optimizer = new tsopt.Optimizer;
+   
+   optimizer.JobDone += OptDone;
+   optimizer.JobFailed += OptError;
+   optimizer.ProgressChanged += OptProgress;
+
+   // Initialize form
+   form1 = Form.Create("Optimization Demo", 500, 500);
+   form1.BackColor = Color.LightGray;
+   form1.Dock = DockStyle.Right;
+
+   startButton = Button.Create("Start Optimization", 120, 30);
+   startButton.Location(20, 20);
+   startButton.Click += OnStartButtonClick;
+   form1.AddControl(startButton);
+
+   form1.Show();
+end;
+
+method tsopt.Job DefineJob()
+vars:
+   tsopt.Job job,
+   tsopt.Security security,
+   tsopt.Strategy strategy,
+   tsopt.GeneticOptions geneticOptions;
+begin
+   job = new tsopt.Job;
+   
+   job.OptimizationMethod = tsopt.OptimizationMethod.genetic;
+   
+   security = job.Securities.AddSecurity();
+   security.Symbol = SymbolToUse;
+   security.Interval.SetMinuteChart(MinuteInterval);
+   security.History.LastDateString = LastDate;
+   security.History.DaysBack = DaysBack;
+
+   strategy = job.Strategies.AddStrategy("Bollinger Bands LE");
+   strategy.ELInputs.OptRange("Length", 10, 30, 1);
+   strategy.ELInputs.OptRange("NumDevsDn", 1, 3, 0.1);
+
+   strategy = job.Strategies.AddStrategy("Bollinger Bands SE");
+   strategy.ELInputs.OptRange("Length", 10, 30, 1);
+   strategy.ELInputs.OptRange("NumDevsUp", 1, 3, 0.1);
+
+   geneticOptions = job.Settings.GeneticOptions;
+   geneticOptions.Generations = 50;
+   geneticOptions.PopulationSize = 50;
+   geneticOptions.EarlyExitGenerations = 10;
+
+   return job;
+end;
+
+method void OnStartButtonClick(elsystem.Object sender, elsystem.EventArgs args)
+vars:
+   tsopt.Job job;
+begin
+   ClearPrintLog;   
+   Print("Starting optimization...");
+
+   job = DefineJob();
+      
+   optimizer.StartJob(job);
+end;
+
+method void OptProgress(Object sender, tsopt.ProgressChangedEventArgs args)
+begin
+   Print("Test ", args.Progress.TestNum.ToString(), " of ", args.Progress.TestCount.ToString());
+   Print("   ", args.BestValues.FitnessName, " = ", args.BestValues.FitnessValue.ToString());
+end;
+
+method void OptDone(object sender, tsopt.JobDoneEventArgs args)
+begin
+   Print("Optimization done");
+   Print("Net Profit = ", args.Results.NetProfit());
+   
+   args.Results.WriteFile(ResultsFile, ",", tsopt.TradeType.alltrades, tsopt.ResultsRange.all);
+end;
+
+method void OptError(Object sender, tsopt.JobFailedEventArgs args)
+begin
+   Print("Optimization Error: ", args.Error.Message);
+end;
+

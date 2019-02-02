@@ -1,0 +1,3 @@
+psql $DB_HEROKU <<SQL
+select o.id,percent_winners,avg_trade,profit_factor,drawdown_intra,avg_monthly_rtn,trade_count,slippage,commission,o.symbol,test_type,strat_id,robust_level       from oos_tests o, strategies s                                                                                                                                                  where o.status_state='captured' and o.strat_id=s.id                                                                                                                                and commission>0                                                                                                                                                               order by avg_trade;
+SQL

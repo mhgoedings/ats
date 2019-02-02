@@ -1,0 +1,9 @@
+tsopt.CostsAndCapital costsAndCapital; 
+costsAndCapital = job.Settings.GeneralOptions.EndGeneralOptions.CostsAndCapital; 
+   costsAndCapital.CommissionMode   = tsopt.CommissionMode.FixedPerShare; 
+   costsAndCapital.CommissionAmount = 0.01; 
+   costsAndCapital.SlippageMode     = tsopt.SlippageMode.FixedPerShare; 
+   costsAndCapital.SlippageAmount   = 0.01; 
+
+
+

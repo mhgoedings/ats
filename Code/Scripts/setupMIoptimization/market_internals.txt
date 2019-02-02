@@ -1,0 +1,828 @@
+{
+MARKET INTERNALS SMART CODE (version AUG 2018)
+
+************************************************************************************
+MARKET INTERNALS PRO COURSE - THIS CODE IS A PART OF AN EDUCATIONAL PRODUCT.
+THIS CODE IS FOR STUDYING PURPOSES ONLY.
+
+DISCLAIMER: Futures trading systems and commodity trading bear a high degree of risk. People can and do lose money.
+Hypothetical results have many inherent limitations. Past performance does not guarantee future results. 
+
+2018(c)Tomas Nesnidal
+www.SystemsOnTheRoad.com
+www.BetterSystemTrader.com
+
+Copyrighted material. Sharing without author´s approval is strictly prohibited and against the law. 
+************************************************************************************
+}
+
+Inputs:
+  int mi_switch(1),           //1-32
+  int mi_parameter(5),        //1-15
+  int entry_exit_both(1),     //1 - ENTRIES only, 2 - EXITS only, 3 - BOTH
+  int resetOnDayBeginning(0), //0-1   0=False, 1=True
+  int resetAfterExit(0);      //0-1   0=False, 1=True
+
+
+//**********************************************************************************
+//Here insert INPUTS OF YOUR OWN TRADING STRATEGY
+//Note: Preferably change them to VARS
+
+
+
+//**********************************************************************************
+
+Vars:
+  bool modeLong(False),
+  bool modeShort(False),
+  double myTickLOD(0),
+  double myTickHOD(0),
+  double myTickHighest100(0),
+  double myTickLowest100(0),
+  double myZoneLong(0),
+  double myZoneShort(0),
+  int cnt_zona(0),
+  int appliedZones(0),
+  double myDiff(0),
+  double myDiffAvg(0),
+  //myDiffAvgBig(0),
+  double myUvolDvolRatio(0),
+  int mktpos(0),
+  double ratioAvg(0),
+  double ratioStdevPlus(0),
+  double ratioStdevMinus(0),
+  double maxRatioLong(0),
+  double maxRatioShort(0),
+  int myLoop(0),
+  double myVIXhighest(0),
+  double myVIXlowest(0),
+  double myRatioLong(0),
+  double myRatioShort(0);
+
+//**********************************************************************************
+//Here insert VARIABLES OF YOUR OWN TRADING STRATEGY
+
+
+
+//**********************************************************************************
+
+Arrays:
+  ZoneLong[6](0),
+  ZoneShort[6](0);
+
+//*********************************************************************
+//PREPARATION BEGINNING
+//*********************************************************************
+{ _marker_mi_prep_start_ }
+//Reset at the beginning of a new day (IF SWITCH resetOnDayBeginning = TRUE)
+
+//Variables
+mktpos = MarketPosition astype int;
+
+if resetOnDayBeginning = 1 then
+begin
+  if Date <> date[1] then
+  begin
+    if mktpos = 0 then
+    begin 
+      modeLong = False;
+      modeShort = False;
+    end else
+    begin
+      if entry_exit_both <> 1 then   // exits
+      begin   
+        if mktpos > 0 then modeLong = False;   //... then we CAN´T reset modeShort
+                                                       //if in LONG position as it can be a
+                                                       //potential exit signal on the
+                                                       // beginning of the day
+        if mktpos < 0 then modeShort = False;  //... then we CAN´T reset modeLong
+                                                       //if in SHORT position as it can be a
+                                                       //potential exit signal on the
+                                                       //beginning of the day
+      end else
+      begin
+        modeLong = False;
+        modeShort = False;
+      end;  
+    end;
+  end;
+end;
+{ _marker_mi_section_end_ }
+//*********************************************************************
+//PREPARATION END
+//*********************************************************************
+
+//****MarketInternal Condition SWITCHES******
+{ _marker_mi_definitions_ }
+Switch (mi_switch)
+begin
+  Case 0:
+  begin
+    modeLong = True;
+    modeShort = True;
+  end;
+
+//****** PART 1: CONDITIONS FOR TICK/TICKY MARKET INTERNAL *******
+  Case 1: 
+  begin //Basic condition - absolute value - version 1
+    if High of data3 > 100 * mi_parameter then 
+    begin
+      modeShort = False;
+      modeLong = True;		
+    end;
+    if Low of data3 < -100 * mi_parameter then 
+    begin
+      modeLong = False;
+      modeShort = True;		
+    end;
+  end;
+	
+  Case 2: 
+  begin //Basic condition - absolute value - version 1 - REVERSE
+    if High of data3 > 100 * mi_parameter then 
+    begin
+      modeLong = False;
+      modeShort = True;		
+    end;
+    if Low of data3 < -100 * mi_parameter then 
+    begin
+      modeShort = False;
+      modeLong = True;		
+    end;	
+  end;
+		
+  Case 3:
+  begin //Basic condition - absolute value - version 2
+    modeLong =  High of data3 > 100 * mi_parameter;	
+    modeShort = Low of data3 < -100 * mi_parameter;
+  end;
+
+  Case 4:
+  begin //Basic condition - absolute value - version 2 - REVERSE
+    modeLong =  High of data3 < 100 * mi_parameter and low of data3 > -100 * mi_parameter;
+    modeShort = modeLong;		
+  end;	
+	
+  Case 5:
+  begin //LEVELLING - 3 LEVELS BASED ON LAST 100 DAYS
+    myTickHighest100 = Highest(High of data6, 100);
+    myTickLowest100 = Lowest(Low of data6, 100);				
+
+    myZoneLong = myTickHighest100 / 3;  
+    myZoneShort = myTickLowest100 / 3;
+
+    ZoneLong[1] = 0;
+    zoneShort[1] = 0;
+    For cnt_zona = 2 to 3
+    begin
+      zoneLong[cnt_zona] = myZoneLong * (cnt_zona - 1);
+      zoneShort[cnt_zona] = myZoneShort * (cnt_zona - 1);
+    end;
+
+    appliedZones = maxlist(1, floor(mi_parameter)) astype int;
+    if mi_parameter > 3 then appliedZones = 3;
+    modeLong =  C of data3 >= zoneLong[appliedZones];
+    modeShort = C of data3 <= zoneShort[appliedZones]; 
+  end;
+			
+  Case 6:
+  begin //BOLLINGER BANDS EXTREMES
+    if h of data3 > bollingerBand(c of data3, 10*mi_parameter, 2) then
+    begin
+      modeLong = True;
+      modeShort = False;
+    end;
+    if l of data3 < bollingerBand(c of data3, 10*mi_parameter, -2) then
+    begin 
+      modeShort = True;
+      modeLong = False;
+    end;	
+  end;
+	
+  Case 7:
+  begin //BOLLINGER BANDS EXTREMES - REVERSE
+    if h of data3 > bollingerBand(c of data3, 10*mi_parameter, 2) then
+    begin
+      modeLong = False;
+      modeShort = True;
+    end;
+    if l of data3 < bollingerBand(c of data3, 10*mi_parameter, -2) then
+    begin 
+      modeShort = False;
+      modeLong = True;
+    end;	
+  end;
+	
+  Case 8:
+  begin //TWO BOLLINGER BANDS (COMPARATION)
+    if bollingerBand(c of data3, 3*mi_parameter, 2) > bollingerBand(c of data3, 10*mi_parameter, 2) then
+    begin
+      modeLong = True;
+      modeShort = False;
+    end;
+    if bollingerBand(c of data3, 3*mi_parameter, -2) < bollingerBand(c of data3, 10*mi_parameter, -2) then
+    begin 
+      modeShort = True;
+      modeLong = False;
+    end;	
+  end;
+
+  Case 9:
+  begin //TWO BOLLINGER BANDS (COMPARATION) -- REVERSE
+    if bollingerBand(c of data3, 3*mi_parameter, 2) < bollingerBand(c of data3, 10*mi_parameter, 2) then
+    begin
+      modeLong = True;
+      modeShort = False;
+    end;
+    if bollingerBand(c of data3, 3*mi_parameter, -2) > bollingerBand(c of data3, 10*mi_parameter, -2) then
+    begin 
+      modeShort = True;
+      modeLong = False;
+    end;	
+  end;
+	
+  Case 10:
+  begin //NEW HIGHEST-HIGH or NEW LOWEST-LOW
+    if High of data3 = highest(high, 3* mi_parameter) of data3 then
+    begin
+      modeLong = True;
+      modeShort = False;
+    end;
+    if Low of data3 = lowest (low, 3* mi_parameter) of data3 then
+    begin
+      modeShort = True;
+      modeLong = False;
+    end;
+  end;
+	
+  Case 11:
+  begin //NEW HIGHEST-HIGH or NEW LOWEST-LOW -- version 2 (STEP 1 instead of STEP 3)
+    if High of data3 = highest(high, mi_parameter) of data3 then
+    begin
+      modeLong = True;
+      modeShort = False;
+    end;
+    if Low of data3 = lowest (low, mi_parameter) of data3 then
+    begin
+      modeShort = True;
+      modeLong = False;
+    end;
+  end;
+	
+  Case 12:
+  begin  //Highest High Of day (paremeterless)
+    if date<>date[1] then
+    begin
+      myTickLOD = L of data3;
+      myTickHOD = H of data3;
+    end;
+    if L of data3 < myTickLOD then myTickLOD = L of data3;
+    if H of data3 > myTickHOD then myTickHOD = H of data3;
+    if myTICKhod > myTickHod[1] then
+    begin 
+      modeLong = TRUE;
+      modeShort = False;
+    end;
+    if myTICKlod < myTickLod[1] then
+    begin
+      modeShort = True;
+      modeLONG = False;
+    end;
+  end;
+	
+  Case 13:
+  begin  //Highest High Of day (paremeterless) - REVERSE
+    if date<>date[1] then
+    begin
+      myTickLOD = L of data3;
+      myTickHOD = H of data3;
+    end;
+		
+    if L of data3 < myTickLOD then myTickLOD = L of data3;
+    if H of data3 > myTickHOD then myTickHOD = H of data3;
+		
+    if myTICKhod > myTickHod[1] then
+    begin 
+      modeShort = True;
+      modeLONG = False;
+    end;
+    if myTICKlod < myTickLod[1] then
+    begin
+      modeLong = TRUE;
+      modeShort = False;
+    end;
+  end;	
+	
+  //****** PART 2: CONDITIONS FOR UVOL-DVOL MARKET INTERNALS *******
+
+  Case 14:
+  begin //Basic use - absolute value
+    modeLong = Close of data4 - Close of data5 > 20000 * mi_parameter;
+    modeShort = Close of data5 - Close of data4 > 20000 * mi_parameter;
+  end;
+
+  Case 15:
+  begin //UVOL-DVOL difference and Moving Average of the Difference - ADVANCED version
+    myDiff = Close of data4 - Close of data5;
+    myDiffAvg = average(myDiff, 10 * mi_parameter);
+    //Entry condition
+    if myDiff > 0 and myDiff > myDiffAvg and myDiffAvg > 0 then
+    begin
+      modeLong = TRUE;
+      modeShort = False;	
+    end;
+    if myDiff < 0 and myDiff < myDiffAvg and myDiffAvg < 0 then
+    begin
+      modeShort = True;
+      modeLONG = False;			
+    end;
+    //Cancel condition
+    if modeLong = True and ((myDiff < 0)or (myDiffAvg < 0)) then
+        modeLong = False;
+    if modeShort = True and  ((myDiff > 0)or (myDiffAvg > 0)) then
+        modeShort = False;
+  end;
+
+  Case 16:
+  begin //UVOL-DVOL difference and Moving Average of the Difference - SIMPLE version, different AVG step
+    myDiff = Close of data4 - Close of data5;
+    myDiffAvg = average(myDiff, 5 * mi_parameter);
+    //Entry condition
+    if myDiff > 0 and myDiff > myDiffAvg then
+    begin
+      modeLong = TRUE;
+      modeShort = False;	
+    end;
+    if myDiff < 0 and myDiff < myDiffAvg then
+    begin
+      modeShort = True;
+      modeLONG = False;			
+    end;
+    //cancel condition
+    if modeLong = True and (myDiff < 0) then modeLong = False;
+    if modeShort = True and  (myDiff > 0) then modeShort = False;
+  end;
+	
+  Case 17:
+  begin //Ratio and absolute values
+    modeLong = IFF(Close of data5 <> 0, Close of data4 / Close of data5, 0) > (mi_parameter/3);
+    modeShort = IFF(close of data4 <> 0, Close of data5 / Close of data4, 0) > (mi_parameter/3);
+  end;
+	
+  Case 18:
+  begin //Ratio and absolute values -- REVERSE
+    modeLong = IFF(Close of data5 <> 0, Close of data4 / Close of data5, 0) < (mi_parameter/3);
+    modeShort = IFF(Close of data4 <> 0, Close of data5 / Close of data4, 0) < (mi_parameter/3);
+  end;
+		
+  Case 19:
+  begin //Extremes with the use of Statistical Arbitrage principles - RATIO model
+    if C of data4 > C of data5 then myUvolDvolRatio = C of data4 / C of data5;
+    if C of data4 < C of data5 then myUvolDvolRatio = -1*(C of data5 / C of data4);
+    if C of data4 = C of data5 then myUvolDvolRatio = 0;
+    ratioAvg = average(myUvolDvolRatio, 5* mi_parameter);
+    ratioStdevPlus = ratioAvg + standardDev(myUvolDvolRatio, 5* mi_parameter, 2);
+    ratioStdevMinus = ratioAvg - standardDev(myUvolDvolRatio, 5* mi_parameter, 2);
+    //Establish trade mode
+    modeLong = myUvolDvolRatio > ratioStdevPlus and myUvolDvolRatio > 0;
+    modeShort = myUvolDvolRatio < ratioStdevMinus and myUvolDvolRatio < 0;
+  end;
+	
+  Case 20:
+  begin //Extremes with the use of Stat Arb principles - DIFFERENCE model
+    myDiff = Close of data4 - Close of data5;
+    myDiffAVG = average(myDiff, 5* mi_parameter);
+    ratioStdevPlus = myDiffAVG + standardDev(myDiff, 5* mi_parameter, 2);
+    ratioStdevMinus = myDiffAVG - standardDev(myDiff, 5* mi_parameter, 2);
+    //Establish trade mode
+    modeLong = myDiff > ratioStdevPlus and myDiff > 0;
+    modeShort = myDiff < ratioStdevMinus and myDiff < 0;
+  end;
+	
+  Case 21:
+  begin //LEVELLING of RATIO - Highest and Lowest Ratio of last 100 days (complex MI condition) - version PERMANENT -- 3 ZONES
+    maxRatioLong = 0;
+    maxRatioShort = 0;
+    //Find the highest and lowest values for the ratio in last 100 days
+    For myLoop = 1 to 100
+    begin
+      if Close[myLoop] of data7 - Close[myLoop] of data8 > 0 then
+        myRatioLong = Close[myLoop] of data7 / Close[myLoop] of data8;
+      if Close[myLoop] of data7 - Close[myLoop] of data8 < 0 then
+          myRatioShort = Close[myLoop] of data8 / Close[myLoop] of data7;
+      if myRatioLong > maxRatioLong then maxRatioLong = myRatioLong;
+      if myRatioShort < maxRatioShort then maxRatioShort = myRatioShort;  
+    end;
+    //Establish 3 levels (zones)
+    myZoneLong = maxRatioLong / 3;
+    myZoneShort = maxRatioShort / 3;
+    For cnt_zona = 1 to 3
+    begin
+      zoneLong[cnt_zona] = myZoneLong * cnt_zona;
+      zoneShort[cnt_zona] = myZoneShort * cnt_zona;
+    end;
+    //final condition
+    appliedZones = maxlist(1, floor(mi_parameter)) astype int;
+    if mi_parameter > 3 then appliedZones = 3;
+    if (((Close of data4 - Close of data5) > 0 ) and
+        (Close of data4 / Close of data5) > zoneLong[appliedZones]) then
+    begin
+      modeLong = True;
+      modeShort = False;
+    end;
+    if ((Close of data4 - Close of data5) < 0 and
+        (Close of data5 / Close of data4) > zoneShort[appliedZones]) then
+    begin
+      modeShort = True;
+      modeLong = False;
+    end;		
+  end; 
+
+  Case 22:
+  begin //LEVELLING of RATIO - Highest and Lowest Ratio of last 100 days (complex MI condition) - version PERMANENT -- 3 ZONES -- REVERSE
+    maxRatioLong = 0;
+    maxRatioShort = 0;
+    //Find the highest and lowest values for the ratio in last 100 days
+    For myLoop = 1 to 100
+    begin
+      if Close[myLoop] of data7 - Close[myLoop] of data8 > 0 then
+        myRatioLong = Close[myLoop] of data7 / Close[myLoop] of data8;
+      if Close[myLoop] of data7 - Close[myLoop] of data8 < 0 then
+        myRatioShort = Close[myLoop] of data8 / Close[myLoop] of data7;
+      if myRatioLong > maxRatioLong then maxRatioLong = myRatioLong;
+      if myRatioShort < maxRatioShort then maxRatioShort = myRatioShort;  
+    end;
+    //Establish 3 levels (zones)
+    myZoneLong = maxRatioLong / 3;
+    myZoneShort = maxRatioShort / 3;
+    For cnt_zona = 1 to 3
+    begin
+      zoneLong[cnt_zona] = myZoneLong * cnt_zona;
+      zoneShort[cnt_zona] = myZoneShort * cnt_zona;
+    end;
+    //final condition
+    appliedZones = maxlist(1, floor(mi_parameter)) astype int;
+    if mi_parameter > 3 then appliedZones = 3;
+    if (((Close of data4 - Close of data5) > 0 ) and
+        (Close of data4 / Close of data5) < zoneLong[appliedZones]) then
+    begin
+      modeLong = True;
+      modeShort = False;
+    end;
+    if ((Close of data4 - Close of data5) < 0 and
+        (Close of data5 / Close of data4) < zoneShort[appliedZones]) then
+    begin
+      modeShort = True;
+      modeLong = False;
+    end;		
+  end; 
+	
+  Case 23:
+  begin //LEVELLING of RATIO - Highest and Lowest Ratio of last 100 days (complex MI condition) - version TEMPORARY
+    maxRatioLong = 0;
+    maxRatioShort = 0;
+    //Find the highest and lowest values for the ratio in last 100 days
+    For myLoop = 1 to 100
+    begin
+      if Close[myLoop] of data7 - Close[myLoop] of data8 > 0 then
+        myRatioLong = Close[myLoop] of data7 / Close[myLoop] of data8;
+      if Close[myLoop] of data7 - Close[myLoop] of data8 < 0 then
+        myRatioShort = Close[myLoop] of data8 / Close[myLoop] of data7;
+      if myRatioLong > maxRatioLong then maxRatioLong = myRatioLong;
+      if myRatioShort < maxRatioShort then maxRatioShort = myRatioShort;  
+    end;
+    //Establish 3 levels (zones)
+    myZoneLong = maxRatioLong / 3;
+    myZoneShort = maxRatioShort / 3;
+    For cnt_zona = 1 to 3
+    begin
+      zoneLong[cnt_zona] = myZoneLong * cnt_zona;
+      zoneShort[cnt_zona] = myZoneShort * cnt_zona;
+    end;
+    //final condition
+    appliedZones = maxlist(1, floor(mi_parameter)) astype int;
+    if mi_parameter > 3 then appliedZones = 3;
+    modeLong =  ((Close of data4 - Close of data5) > 0 and (Close of data4 / Close of data5) > zoneLong[appliedZones]); 
+    modeShort = ((Close of data4 - Close of data5) < 0 and (Close of data5 / Close of data4) > zoneShort[appliedZones]);
+  end; 	
+
+  Case 24:
+  begin //LEVELLING of RATIO - Highest and Lowest Ratio of last 100 days (complex MI condition) - version TEMPORARY -- REVERSE
+    maxRatioLong = 0;
+    maxRatioShort = 0;
+    //Find the highest and lowest values for the ratio in last 100 days
+    For myLoop = 1 to 100
+    begin
+      if Close[myLoop] of data7 - Close[myLoop] of data8 > 0 then myRatioLong = Close[myLoop] of data7 / Close[myLoop] of data8;
+      if Close[myLoop] of data7 - Close[myLoop] of data8 < 0 then myRatioShort = Close[myLoop] of data8 / Close[myLoop] of data7;
+      if myRatioLong > maxRatioLong then maxRatioLong = myRatioLong;
+      if myRatioShort < maxRatioShort then maxRatioShort = myRatioShort;  
+    end;
+    //Establish 3 levels (zones)
+    myZoneLong = maxRatioLong / 3;
+    myZoneShort = maxRatioShort / 3;
+    For cnt_zona = 1 to 3
+    begin
+      zoneLong[cnt_zona] = myZoneLong * cnt_zona;
+      zoneShort[cnt_zona] = myZoneShort * cnt_zona;
+    end;
+    //final condition
+    appliedZones = maxlist(1, floor(mi_parameter)) astype int;
+    if mi_parameter > 3 then appliedZones = 3;
+    modeLong =  ((Close of data4 - Close of data5) > 0 and (Close of data4 / Close of data5) < zoneLong[appliedZones]); 
+    modeShort = ((Close of data4 - Close of data5) < 0 and (Close of data5 / Close of data4) < zoneShort[appliedZones]);
+  end; 	
+	
+
+//****** PART 3 : VOLATILITY MI CONDITIONS (WITH WIX) ********
+	
+  Case 25:
+  begin //Current volatility above average volatility
+    if Close[1] of data9 > Average(Close, 10 * mi_parameter) of data9 then
+    begin 
+      modeLong = True;
+      modeShort = True; 
+    end else
+    begin
+      modeLong = False;
+      modeShort = False; 
+    end;
+  end;	
+		
+  Case 26:
+  begin //Current volatility below average volatility
+    if Close[1] of data9 < Average(Close, 10 * mi_parameter) of data9 then
+    begin 
+      modeLong = True; modeShort = True; 
+    end else
+    begin
+      modeLong = False; modeShort = False; 
+    end;
+  end;
+	
+  Case 27:
+  begin //short term average volatility above average volatility 
+    if Average(Close, 2 * mi_parameter) of data9 > Average(Close, 10 * mi_parameter) of data9 then
+    begin 
+      modeLong = True;
+      modeShort = True; 
+    end else
+    begin
+      modeLong = False;
+      modeShort = False; 
+    end;
+  end;	
+		
+  Case 28:
+  begin //short term average volatility below average volatility 
+    if Average(Close, 2 * mi_parameter) of data9 < Average(Close, 10 * mi_parameter) of data9 then
+    begin 
+      modeLong = True;
+      modeShort = True; 
+    end else
+    begin
+      modeLong = False;
+      modeShort = False; 
+    end;
+  end;
+
+  Case 29:
+  begin //Levelling - 3 zones (levels) according to last 100 days - version 1
+    myVIXhighest = Highest(C of data9, 100);
+    myVIXlowest = Lowest(C of data9, 100);				
+
+    myZoneLong = (myVIXhighest-myVIXlowest) / 3;  //calculate the range for one level
+
+    //based on mi_parameter, get the actual zone and allow trades only in such a zone (level)
+    if mi_parameter = 1 then
+    begin
+      if (Close[1] of data9 <= myVIXlowest + myZoneLong) then
+      begin
+        modeLong = True;
+        modeShort = True; 
+      end else
+      begin
+        modeLong = False;
+        modeShort = False;
+      end;
+    end;		
+
+    if mi_parameter = 2 then
+    begin
+      if (Close[1] of data9 <= myVIXlowest + 2*myZoneLong) and
+         (Close[1] of data9 > myVIXlowest + myZoneLong) then
+      begin
+        modeLong = True;
+        modeShort = True; 
+      end else
+      begin
+        modeLong = False;
+        modeShort = False;
+      end;
+    end;
+    if mi_parameter = 3 then
+    begin
+      if (Close[1] of data9 > myVIXlowest + 2*myZoneLong) then
+      begin
+        modeLong = True;
+        modeShort = True; 
+      end else
+      begin
+        modeLong = False;
+        modeShort = False;
+      end;
+    end;
+  end;
+	
+  Case 30:
+  begin //Levelling - 3 zones (levels) according to last 100 days - version 2
+    myVIXhighest = Highest(H of data9, 100);
+    myVIXlowest = Lowest(L of data9, 100);				
+
+    myZoneLong = (myVIXhighest-myVIXlowest) / 3;  //calculate the range for one level
+			
+    //based on mi_parameter, get actual zone and allow trades only in such a zone (level)
+    if mi_parameter = 1 then
+    begin
+      if (Close[1] of data9 <= myVIXlowest + myZoneLong) then
+      begin
+        modeLong = True;
+        modeShort = True; 
+      end else
+      begin
+        modeLong = False;
+        modeShort = False;
+      end;
+    end;		
+    if mi_parameter = 2 then
+    begin
+      if (Close[1] of data9 <= myVIXlowest + 2*myZoneLong) and
+          (Close[1] of data9 > myVIXlowest + myZoneLong) then
+      begin
+        modeLong = True;
+        modeShort = True; 
+      end else
+      begin
+        modeLong = False;
+        modeShort = False;
+      end;
+    end;
+    if mi_parameter = 3 then
+    begin
+      if (Close[1] of data9 > myVIXlowest + 2*myZoneLong)  then
+      begin
+        modeLong = True;
+        modeShort = True; 
+      end else
+      begin
+        modeLong = False; modeShort = False;
+      end;
+    end;
+  end;	
+		
+  Case 31:
+    begin //Filter the weakest zone - version1
+    myVIXhighest = Highest(C of data9, 100);
+    myVIXlowest = Lowest(C of data9, 100);				
+    myZoneLong = (myVIXhighest-myVIXlowest) / 3;  
+    if mi_parameter = 1 then
+    begin
+      if  (Close[1] of data9 > myVIXlowest + myZoneLong) then
+      begin
+        modeLong = True;
+        modeShort = True; 
+      end else
+      begin
+        modeLong = False;
+        modeShort = False;
+      end;
+    end;		
+    if mi_parameter = 2 then
+    begin
+      if (Close[1] of data9 < myVIXlowest + myZoneLong) or
+          (Close[1] of data9 > myVIXlowest + 2*myZoneLong) then
+      begin
+        modeLong = True;
+        modeShort = True; 
+      end else
+      begin
+        modeLong = False;
+        modeShort = False;
+      end;
+    end;
+    if mi_parameter = 3 then
+    begin
+      if (Close[1] of data9 < myVIXlowest + 2*myZoneLong)  then
+      begin
+        modeLong = True; modeShort = True; 
+      end else
+      begin
+        modeLong = False;
+        modeShort = False;
+      end;
+    end;
+  end;
+	
+  Case 32:
+    begin //Filter the weakest zone - version2
+    myVIXhighest = Highest(H of data9, 100);
+    myVIXlowest = Lowest(L of data9, 100);				
+
+    myZoneLong = (myVIXhighest-myVIXlowest) / 3;  
+					
+    if mi_parameter = 1 then
+    begin
+      if  (Close[1] of data9 > myVIXlowest + myZoneLong) then
+      begin
+        modeLong = True;
+        modeShort = True; 
+      end else
+      begin
+        modeLong = False;
+        modeShort = False;
+      end;
+    end;		
+    if mi_parameter = 2 then
+    begin
+      if (Close[1] of data9 < myVIXlowest + myZoneLong) or
+          (Close[1] of data9 > myVIXlowest + 2*myZoneLong) then
+      begin
+        modeLong = True;
+        modeShort = True; 
+      end else
+      begin
+        modeLong = False;
+        modeShort = False;
+      end;
+    end;
+    if mi_parameter = 3 then
+    begin
+      if (Close[1] of data9 < myVIXlowest + 2*myZoneLong) then
+      begin
+        modeLong = True;
+        modeShort = True; 
+      end else
+      begin
+        modeLong = False;
+        modeShort = False;
+      end;
+    end;	
+  end; 
+end;//END of Market Internals Switches
+
+{ _marker_mi_section_end_ }
+
+//*********************************************************************
+//BEGINING: HERE INSERT YOUR TRADING SYSTEM AND FOLLOW THE INSTRUCTION
+//*********************************************************************
+
+//here insert the strategy WITHOUT final entry condition intself and WITHOUT exit conditions
+
+{Final entry conditions - modified for MI testing}
+if entry_exit_both <> 2 then		// entries
+begin
+  { here insert the FINAL LONG CONDITION AND ORDER + add syntax "and modeLong" } 
+  { here insert the FINAL SHORT CONDITION AND ORDER + add syntax "and modeShort" } 
+end else                                // exits only
+begin
+  { here insert the FINAL LONG CONDITION AND ORDER (dont add anything else) } 
+  { here insert the FINAL SHORT CONDITION AND ORDER (dont add anything else) } 
+end;
+
+
+//here insert the EXIT conditions of your original strategy
+
+
+//*******************************************************************
+//YOUR ORIGINAL STRATEGY END
+//*******************************************************************
+
+{premature EXIT based on MI - if a significant change in the mood of the market as a whole}
+
+{ _marker_mi_premature_exit_ }
+
+if entry_exit_both <> 1 then    // exits
+begin
+  if mktpos >0 and modeShort then
+  begin 
+    Sell ("MI_ExitLNG") this bar at close; 
+  end;
+  if mktpos <0 and modeLong then
+  begin
+    BuyToCover ("MI_ExitSHRT") this bar at close;
+  end;
+end;
+
+{ _marker_mi_section_end_ }
+
+{Reset MI condition after exit}
+
+{ _marker_mi_exit_reset_ }
+
+if resetAfterExit = 1 then
+begin
+  if mktpos = 0 and mktpos[1] > 0 then modeLong = False;
+  if mktpos = 0 and mktpos[1] < 0 then modeShort = False;	
+end;
+
+{ _marker_mi_section_end_ }
