@@ -1,4 +1,0 @@
-1. Double 7s
-	- spy above 200 MA
-	- if spy close @ a 7 day low, buy
-	- if spy closes @ a 7day high, sell long positio

@@ -21,10 +21,10 @@ class StrategySetting(Base):
     value     = Column(String(255), nullable=True)
     data_type = Column(String(8), nullable=True)
 
-    start_dt  = Column(Date)
-    end_dt    = Column(Date)
+    #start_dt  = Column(Date)
+    #end_dt    = Column(Date)
 
-    status    = Column(String(12), nullable=True)
+    #status    = Column(String(12), nullable=True)
 
 
 ##     status            

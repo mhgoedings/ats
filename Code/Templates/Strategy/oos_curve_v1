@@ -1,0 +1,19 @@
+{% extends "swfa_b1" %}
+{% block version %}{{self._TemplateReference__context.name}}{% endblock %}
+{% block heading %}
+  {{ super() }}
+{% endblock %}
+{% block meta %}
+{{ comments['chart_setup'] }}
+{{ comments['prototype_info'] }}
+{% endblock %}
+
+{% block inputs_of_vars %}
+Vars:
+{% endblock -%}
+
+{% block by_date_params %}
+  {% for code in setup['oos_curve_params'] -%}
+    {{ code }}
+  {% endfor -%}
+{% endblock -%}

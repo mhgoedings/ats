@@ -9,7 +9,9 @@ Template Version: swfa_b1:{% block version %}{% endblock %}
 
 {% block inputs -%}
 {% if setup['counts']['el_inputs'] > 0 -%}
+{% block inputs_of_vars -%}
 Inputs:
+{% endblock -%}
 {% for name in setup['input_names'] -%}
 {% if setup['vars'][name].el_block == 'input' -%}
   {{ setup['vars'][name].d_type }} {{ name }}({{ setup['vars'][name].setting }}){% if loop.index < setup['counts']['el_inputs'] %},{% else %};{% endif %}

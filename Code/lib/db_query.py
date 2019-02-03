@@ -29,7 +29,7 @@ from base import Base, Session
 
 
 def connectDB():
-    logger.debug(f"entered")
+    logger.debug(f"connectDB(): entered")
     db = Session()
     db_url = os.environ["DB_HEROKU"]
     db_url = "postgres://ghvnmtixgtixhb:960715ae6d2d874bfa40fc66c99b4fb2cce1e452cc804f1dff3c5c1f7b722e4d@ec2-107-22-162-8.compute-1.amazonaws.com:5432/delmad8ora7a1v"
@@ -44,7 +44,7 @@ def connectDB():
 
 
 def nextPrototypeId(dbh):
-    logger.debug(f"entered")
+    logger.debug(f"nextPrototypeId(dbh): entered")
     try:
         id = (
             dbh.query(Prototype)
@@ -62,7 +62,7 @@ def nextPrototypeId(dbh):
 
 
 def nextCandidateId(dbh):
-    logger.debug(f"entered")
+    logger.debug(f"nextCandidateId(dbh): entered")
     try:
         id = (
             dbh.query(Candidate)
@@ -82,12 +82,14 @@ def nextCandidateId(dbh):
 #       .join(ConsolidatedLedger, GeneralLedger.invoiceId == ConsolidatedLedger.invoiceId).all()
 
 
-def nextStrategyId(dbh,status='new',status_state='pending'):
-    logger.debug(f"entered")
+def nextStrategyId(dbh, status="new", status_state="pending"):
+    logger.debug(f"nextStrategyId: entered")
     try:
         id = (
             dbh.query(Strategy)
-            .filter(and_(Strategy.status == status, Strategy.status_state == status_state))
+            .filter(
+                and_(Strategy.status == status, Strategy.status_state == status_state)
+            )
             .all()[0]
             .id
         )
@@ -105,12 +107,13 @@ def queryStrategy(dbh, id):
     logger.debug(f"id = {id}")
     return dbh.query(Strategy).filter(Strategy.id == id).one_or_none()
 
+
 def queryCandidate(dbh, id):
     logger.debug(f"id = {id}")
     return dbh.query(Candidate).filter(Candidate.id == id).one_or_none()
 
 
-'''
+"""
 def queryCandidate(dbh, id):
     logger.debug(f"id = {id}")
     return (
@@ -124,7 +127,7 @@ def queryCandidate(dbh, id):
         )
         .one_or_none()
     )
-'''
+"""
 
 
 def queryPrototypeParams(dbh, id):

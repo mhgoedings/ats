@@ -36,6 +36,8 @@ import parameter_preset
 import strategy
 import strategy_setting
 import strategy_reopt_parameter
+import strategy_oos_period
+import strategy_oos_setting
 import job_control
 
 target_metadata = base.Base.metadata

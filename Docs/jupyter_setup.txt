@@ -1,5 +1,0 @@
-
-  Windows setup:
-  cmd:    $ jupyter notebook --generate-config
-  edit .jupyter\jupyter_notebook_config.py
-  change:  c.NotebookApp.notebook_dir = 'C:/ZTS/Dropbox/ats'

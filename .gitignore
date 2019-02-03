@@ -16,6 +16,7 @@ __pycache__/
 Model/v3/__pycache__/**
 Data/**
 Logs/**
+Docs/**
 
 #TradeStation95/**
 TradeStation95/Backups

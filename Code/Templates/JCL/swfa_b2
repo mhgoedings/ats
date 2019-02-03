@@ -82,7 +82,7 @@ job
     .GeneralOptions
         .SetMaxBarsBack({{setup.max_bars_back}})
         .SetLookInsideBarEnabled( True )
-        .SetLookInsideBarResQty( 15 )
+        .SetLookInsideBarResQty( 1 )
         .SetLookInsideBarResUnit( tsopt.Compression.Minute )
     .EndGeneralOptions
     .TradeSize

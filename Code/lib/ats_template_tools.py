@@ -16,6 +16,7 @@ sys.path.append("/Users/szagar/ZTS/Dropbox/Business/ats/Code/lib")
 from db_query import queryPoi
 from ats_tools import hhmm2mins, add2hhmm
 
+
 def setHeader(setup):
     return f"""      prototype: { setup['proto_id'] }
       template: { setup['template_version'] }
@@ -134,14 +135,13 @@ def filterLogic(dbh, setup):
             # d_filter = {'fid': id,
             #            'long': long_code,
             #            'short': short_code}
-            
+
             if q.vars:
                 for v in q.vars.split(";"):
                     logger.debug(f"for v is {v}")
                     name, dtype, value = v.split(":")
-                    #setup["param_vars"][name] = {"d_type": dtype, "value": value}
+                    # setup["param_vars"][name] = {"d_type": dtype, "value": value}
                     setup["vars"][name] = {"d_type": dtype, "setting": value}
-
 
             filters[ds][idx] = {"fid": id, "long": long_code, "short": short_code}
             idx += 1
@@ -171,6 +171,7 @@ def lsbLogic(setup):
     """
     return logic
 
+
 def poiLogic(dbh, setup):
     logger.debug("================= poiLogic")
     logger.debug(setup)
@@ -197,7 +198,7 @@ def poiLogic(dbh, setup):
         logger.debug(f"for id is{id}")
         q = queryPoi(dbh, id)
         if not q:
-            #logic = None
+            # logic = None
             warn(f"poiLogic: No POI logic for id: {id}")
             continue
         logger.debug("append to logic")
@@ -214,13 +215,17 @@ def poiLogic(dbh, setup):
             for v in q.vars.split(";"):
                 logger.debug(f"for v is {v}")
                 name, dtype, value = v.split(":")
-                #setup["param_vars"][name] = {"d_type": dtype, "value": value}
-                setup["vars"][name] = {"d_type": dtype, "setting": value, "el_block": "variable"}
- 
+                # setup["param_vars"][name] = {"d_type": dtype, "value": value}
+                setup["vars"][name] = {
+                    "d_type": dtype,
+                    "setting": value,
+                    "el_block": "variable",
+                }
+
                 #'opt_inputs': {'filter_1': {'dtype': 'int',
                 #             'type': 'distinct',
                 #             'value': [2, 5, 6]},
-    
+
     return logic
 
 
@@ -290,27 +295,18 @@ def profitTargetLogic(setup):
         code = "SetProfitTarget(profit_target);"
     return code
 
+
 import pprint
-def processStrategyTemplate(hdr, desc, setup, logic):
+
+
+def processStrategyTemplate(template, hdr, desc, setup, logic):
     logger.debug("processStrategyTemplate ....")
-    logger.debug("desc.....")
-    logger.debug(desc)
-    pprint.pprint(desc)
-    logger.debug("setup.....")
-    logger.debug(setup)
-    pprint.pprint(setup)
-    #logger.debug("logic.....")
-    #logger.debug(logic)
-    pprint.pprint(logic)
     search_path = f"{ats_dir}/Code/Templates/Strategy/"
-    logger.debug(f"platofrm = {platform.system()}")
-    if platform.system() == 'Windows':
+    if platform.system() == "Windows":
         search_path = str(PureWindowsPath(ats_dir_win / strat_tplt_dir))
-    logger.debug(f"search_path={search_path}") 
     templateLoader = FileSystemLoader(searchpath=search_path)
-    #templateLoader = FileSystemLoader(searchpath=f"{ats_dir}/Code/Templates/Strategy/")
     templateEnv = Environment(loader=templateLoader)
-    TEMPLATE_FILE = setup["template_version"]
+    TEMPLATE_FILE = template
     logger.debug(f"process template: {TEMPLATE_FILE}")
     template = templateEnv.get_template(TEMPLATE_FILE)
     outputText = template.render(
@@ -328,23 +324,23 @@ def processStrategyTemplate(hdr, desc, setup, logic):
 
 
 def processJclTemplate(setup):
-    #setup['in_sample_file'] = PureWindowsPath(ats_dir_win / dp_dir / setup['in_sample_file'])
-    #setup['out_of_sample_file'] = PureWindowsPath(ats_dir_win / dp_dir / setup['out_of_sample_file'])
+    # setup['in_sample_file'] = PureWindowsPath(ats_dir_win / dp_dir / setup['in_sample_file'])
+    # setup['out_of_sample_file'] = PureWindowsPath(ats_dir_win / dp_dir / setup['out_of_sample_file'])
 
     search_path = f"{ats_dir}/Code/Templates/JCL/"
     logger.debug(f"platofrm = {platform.system()}")
-    if platform.system() == 'Windows':
+    if platform.system() == "Windows":
         search_path = str(PureWindowsPath(ats_dir_win / jcl_tplt_dir))
-    logger.debug(f"search_path={search_path}") 
+    logger.debug(f"search_path={search_path}")
     templateLoader = FileSystemLoader(searchpath=search_path)
-    #templateLoader = FileSystemLoader(searchpath=f"{ats_dir}/Code/Templates/JCL/")
+    # templateLoader = FileSystemLoader(searchpath=f"{ats_dir}/Code/Templates/JCL/")
     templateEnv = Environment(loader=templateLoader)
     TEMPLATE_FILE = setup["jcl_version"]
     logger.debug(f"JCL template file: {TEMPLATE_FILE}")
     template = templateEnv.get_template(TEMPLATE_FILE)
     outputText = template.render(
         setup=setup,
-        #in_sample_file=in_sample_file,
-        #out_of_sample_file=out_of_sample_file,
+        # in_sample_file=in_sample_file,
+        # out_of_sample_file=out_of_sample_file,
     )
     return outputText

@@ -68,7 +68,9 @@ def firstDataBlock():
 
 
 def setDates(sess_st, sess_end, bars_back, data_set, data_block, time_frames):
-    logger.debug(f"sess_st={sess_st}, sess_end={sess_end}, bars_back={bars_back}, data_set={data_set}, data_block={data_block}, time_frames={time_frames}")
+    logger.debug(
+        f"sess_st={sess_st}, sess_end={sess_end}, bars_back={bars_back}, data_set={data_set}, data_block={data_block}, time_frames={time_frames}"
+    )
     tf = int(time_frames[0])
     number_segments = 10
 
@@ -348,8 +350,8 @@ def add_candidate(dbh, proto_id, params):
         strategy_name="",
         status="new",
         status_state="pending",
-        bt_start_dt = db_proto.bt_start_dt,
-        bt_end_dt   = db_proto.bt_end_dt,
+        bt_start_dt=db_proto.bt_start_dt,
+        bt_end_dt=db_proto.bt_end_dt,
     )
     dbh.add(new_cand)
     dbh.commit()
@@ -398,7 +400,8 @@ def add_candidate_settings(dbh, cand_id, proto_id, params):
 
     dbh.commit()
 
-def step_size_adjustment(dbh,opt_params,settings):
+
+def step_size_adjustment(dbh, opt_params, settings):
     adj_by = 0
     cnt = 8001
     adj_by = 0
@@ -406,13 +409,16 @@ def step_size_adjustment(dbh,opt_params,settings):
     while cnt > 8000:
         cnt = 1
         for param_name in opt_params:
-            data_dict = setOptimizationParam(dbh, param_name, settings[param_name],nsteps,adj_by)
-            nsteps = max(nsteps,data_dict['num_steps'])
+            data_dict = setOptimizationParam(
+                dbh, param_name, settings[param_name], nsteps, adj_by
+            )
+            nsteps = max(nsteps, data_dict["num_steps"])
             cnt *= data_dict["iterations"]
         logger.debug(f"cnt={cnt} with adjustment: {adj_by}")
         if cnt > 8000:
             adj_by -= 1
     return adj_by
+
 
 def add_candidate_parameters(dbh, cand_id, proto_id, settings):
     logger.debug(f"add_candidate_parameters(dbh,{cand_id},{proto_id}):")
@@ -422,12 +428,14 @@ def add_candidate_parameters(dbh, cand_id, proto_id, settings):
         if p.re_optimize == "Y" and p.name in settings.keys()
     ]
 
-    step_adj = step_size_adjustment(dbh,opt_params,settings)
+    step_adj = step_size_adjustment(dbh, opt_params, settings)
     logger.debug(f"add_candidate_parameters: opt_params={opt_params}")
     cnt = 1
     for param_name in opt_params:
         logger.debug(f"name: {param_name} ===> {settings[param_name]}")
-        data_dict = setOptimizationParam(dbh, param_name, settings[param_name],99,step_adj)
+        data_dict = setOptimizationParam(
+            dbh, param_name, settings[param_name], 99, step_adj
+        )
         cnt *= data_dict["iterations"]
         new_rec = CandidateParameter(
             candidate_id=cand_id,
@@ -452,7 +460,9 @@ def count_iterations(start, end, step):
 
 
 def setOptimizationParam(dbh, param_name, value, nsteps, step_adj=0):
-    logger.debug(f"setOptimizationParam(dbh, {param_name}, {value}, {nsteps}, {step_adj}):")
+    logger.debug(
+        f"setOptimizationParam(dbh, {param_name}, {value}, {nsteps}, {step_adj}):"
+    )
     param_def = queryParamDef(dbh, param_name)
     if nsteps == 0:
         num_steps = param_def.num_steps
@@ -461,7 +471,9 @@ def setOptimizationParam(dbh, param_name, value, nsteps, step_adj=0):
     step_size = param_def.step_size
     min_val = param_def.min_value
     max_val = param_def.max_value
-    logger.debug(f"num_steps={num_steps}  step_size={step_size}  min_val={min_val}  max_val={max_val}")
+    logger.debug(
+        f"num_steps={num_steps}  step_size={step_size}  min_val={min_val}  max_val={max_val}"
+    )
     if param_def.data_type == "double":
         value = float(value)
         step_size = float(step_size)

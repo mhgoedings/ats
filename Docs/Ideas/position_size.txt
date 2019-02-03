@@ -1,5 +1,0 @@
-1. DOW - adj size based on dow
-       - increase by 25, 50, 100%
-2. Previous days action
-	- down day, high-volatility
-3. Opening gap

@@ -41,18 +41,18 @@ F7 = 128
 F8 = 256
 F9 = 512
 F10 = 1024
-Fmap = { F1: 'F1',
-         F2: 'F2',
-         F3: 'F3',
-         F4: 'F4',
-         F5: 'F5',
-         F6: 'F6',
-         F7: 'F7',
-         F8: 'F8',
-         F9: 'F9',
-         F10: 'F10',
-       }
-
+Fmap = {
+    F1: "F1",
+    F2: "F2",
+    F3: "F3",
+    F4: "F4",
+    F5: "F5",
+    F6: "F6",
+    F7: "F7",
+    F8: "F8",
+    F9: "F9",
+    F10: "F10",
+}
 
 
 def getCandidateSetup(dbh, cand_id):
@@ -81,7 +81,9 @@ def getCandidateSetup(dbh, cand_id):
     setup["walk_forward_file"] = cand.wfa_file
 
     setup["swfa_done_fn"] = PureWindowsPath(ats_dir_win / jcl_dir)
-    setup["swfa_done_fn"] = PureWindowsPath(setup["swfa_done_fn"] / f"{cand.wfa_file}.done")
+    setup["swfa_done_fn"] = PureWindowsPath(
+        setup["swfa_done_fn"] / f"{cand.wfa_file}.done"
+    )
 
     setup["sess_start"], setup["sess_end"] = setSessionVars(dbh, setup["session_num"])
     setup["data_series"] = setDataSeries(setup["chart_series"])
@@ -100,7 +102,7 @@ def getCandidateSetup(dbh, cand_id):
     logger.debug("========= for s in settings:")
     for s in settings:
         logger.debug(f"settings:  s={s.name}")
-        #setup["param_vars"][s.name] = {"d_type": s.data_type, "value": s.value}
+        # setup["param_vars"][s.name] = {"d_type": s.data_type, "value": s.value}
         setup["vars"].setdefault(s.name, {})["d_type"] = s.data_type
         setup["vars"][s.name]["setting"] = s.value
         logger.debug(f"setup['vars'][{s.name}]['setting'] = {s.value}")
@@ -117,7 +119,7 @@ def getCandidateSetup(dbh, cand_id):
         setup["opt_inputs"][param_name] = param_setup
         param_order.append(f"{param_name}:{param_setup['dtype']}")
         pprint.pprint(param_setup)
-        setup["vars"][param_name]["dtype"] = param_setup['dtype']
+        setup["vars"][param_name]["dtype"] = param_setup["dtype"]
         if param_setup["type"] == "var":
             logger.debug("========= var:")
             setup["vars"][param_name]["setting"] = p.value
@@ -129,12 +131,12 @@ def getCandidateSetup(dbh, cand_id):
             setup["vars"][param_name]["el_block"] = "input"
             setup["input_names"].append(param_name)
             setup["counts"]["el_inputs"] += 1
-            logger.debug(setup['vars'][param_name])
+            logger.debug(setup["vars"][param_name])
         logger.debug(setup["vars"][param_name])
     setup["reopt_param_names"] = ",".join(param_order)
     dbUpdateCandidate(dbh, cand_id, {"reopt_param_names": setup["reopt_param_names"]})
 
-    '''
+    """
     for k in setup["vars"]:
         logger.debug(f"vars:  k={k}")
         if "value" in setup["vars"][k].keys() and isinstance(
@@ -145,9 +147,9 @@ def getCandidateSetup(dbh, cand_id):
         else:
             setup["vars"][k]["el_block"] = "variable"
             setup["counts"]["el_vars"] += 1
-    '''
+    """
 
-    '''
+    """
     for k, v in setup["vars"].items():
         logger.debug(f"items:  {v}")
         pprint.pprint(f"*getCandidateSetup: items:  {v}")
@@ -157,7 +159,7 @@ def getCandidateSetup(dbh, cand_id):
             setup["var_names"].append(k)
         else:
             warn(f"el_block not defined, cand_id={setup['cand_id']}, var={k}")
-    '''
+    """
 
     setup["timeframes"] = []
     for ds in setup["chart_series"].split(","):
@@ -167,14 +169,14 @@ def getCandidateSetup(dbh, cand_id):
         setup["counts"]["data_series"] += 1
 
     dir = f"{ats_dir}/Data/CandidateCode/"
-    if platform.system() == 'Windows':
+    if platform.system() == "Windows":
         dir = str(PureWindowsPath(ats_dir_win / cand_code_dir))
 
     setup["strategy_name"] = f"cand_{cand_id}"
     setup["strategy_file"] = f"{dir}/{setup['strategy_name']}"
 
     dir = f"{ats_dir}/Data/OptimizationApiCode/"
-    if platform.system() == 'Windows':
+    if platform.system() == "Windows":
         dir = str(PureWindowsPath(ats_dir_win / jcl_code_dir))
 
     setup["jcl_file"] = f"{dir}{setup['strategy_name']}.jcl"
@@ -272,7 +274,7 @@ def set_filters(dbh, df, proto_id, filter_list=(F1, F2, F3, F4, F5, F6)):
     if F2 in filter_list:
         logger.debug(f"proto = queryPrototype(dbh, {proto_id})")
         proto = queryPrototype(dbh, proto_id)
-        #print(proto)
+        # print(proto)
         slippage, commission = queryCosts(dbh, proto.symbol)
         avg_trade_level = 2 * (slippage + commission)
         logger.debug(f"F2 avg_trade_level={avg_trade_level}")
@@ -384,15 +386,16 @@ def set_filters(dbh, df, proto_id, filter_list=(F1, F2, F3, F4, F5, F6)):
 
     logger.debug("Filter Counts ...")
     for f_level in (F10, F9, F8, F7, F6, F5, F4, F3, F2, F1):
-        logger.debug(f"{Fmap[f_level]} :: {len(df[df['AvgTrade_Filter'] & f_level == f_level])}")
-
+        logger.debug(
+            f"{Fmap[f_level]} :: {len(df[df['AvgTrade_Filter'] & f_level == f_level])}"
+        )
 
 
 def record_candidates(dbh, proto_id, params):
     logger.debug(f"record_candidates(dbh, {proto_id}, {params}):")
-    #if not test_mode:
+    # if not test_mode:
     add_candidate(dbh, proto_id, params)
-    #else:
+    # else:
     #    print("In test mode.")
 
 
@@ -409,9 +412,9 @@ def add_non_optimized_settings(dbh, proto_id, cand_params):
             cand_params[setting.name] = setting.value
 
 
-def parse_row_for_parent_setting(dbh,row,parent_name):
+def parse_row_for_parent_setting(dbh, row, parent_name):
     logger.debug(f"column: param:{parent_name}")
-    val = row[f'param:{parent_name}']
+    val = row[f"param:{parent_name}"]
     param_def = queryParamDef(dbh, parent_name)
     if param_def.data_type == "int":
         val = int(val)
@@ -420,13 +423,16 @@ def parse_row_for_parent_setting(dbh,row,parent_name):
     logger.debug("**********************************************")
     return val
 
+
 import re
-def param_used_by_parent(dbh,col_name,parent,id):
+
+
+def param_used_by_parent(dbh, col_name, parent, id):
     logger.debug(f"param_used_by_parent({col_name},{parent},{id})")
-    patrn = re.compile('_\d\d*$')
+    patrn = re.compile("_\d\d*$")
     if re.search(patrn, parent):
-        parent,ds = parent.rsplit('_')
-    #parent = re.sub( r"_\d*$", "", parent)
+        parent, ds = parent.rsplit("_")
+    # parent = re.sub( r"_\d*$", "", parent)
     logger.debug(f"param_used_by_parent: {parent}")
     logic = queryLogic(dbh, parent, id)
     logger.debug(f"long_logic: {logic.long_logic}")
@@ -434,17 +440,18 @@ def param_used_by_parent(dbh,col_name,parent,id):
     logger.debug(f"long_params: {logic.long_params}")
     logger.debug(f"short_params: {logic.short_params}")
     if logic.long_params:
-        for param in logic.long_params.split(','):
+        for param in logic.long_params.split(","):
             if col_name == param.format(dn=ds):
                 logger.debug(f"filter({id}) uses param {col_name}")
                 return True
     if logic.short_params:
-        for param in logic.short_params.split(','):
+        for param in logic.short_params.split(","):
             if col_name == param.format(dn=ds):
                 logger.debug(f"filter({id}) uses param {col_name}")
                 return True
     logger.debug(f"filter({id}) Does Not use param {col_name}")
     return False
+
 
 def capture_params(dbh, proto_id, df, top_q=[]):
     filter_col = [col for col in df if col.startswith("param:")]
@@ -458,16 +465,18 @@ def capture_params(dbh, proto_id, df, top_q=[]):
         for c in filter_col:
             col_name = c.split(":")[1]
             logger.debug(f"col_name={col_name}")
-            patrn = re.compile('_n\d\d*$')
-            if re.search(patrn, col_name):  # and col_name.split('_')[-1].startswith('n'):
-                parent = col_name[:col_name.rfind('_')]
-                param_num = col_name.split('_')[-1][1:]
+            patrn = re.compile("_n\d\d*$")
+            if re.search(
+                patrn, col_name
+            ):  # and col_name.split('_')[-1].startswith('n'):
+                parent = col_name[: col_name.rfind("_")]
+                param_num = col_name.split("_")[-1][1:]
                 logger.debug(f"parent={parent}")
                 logger.debug(f"param_num={param_num}")
-                parent_setting =  parse_row_for_parent_setting(dbh,j,parent)
-                if not param_used_by_parent(dbh,col_name,parent,parent_setting):
+                parent_setting = parse_row_for_parent_setting(dbh, j, parent)
+                if not param_used_by_parent(dbh, col_name, parent, parent_setting):
                     logger.debug(f"{col_name} is NOT used by {parent} {parent_setting}")
-                    continue;
+                    continue
             logger.debug(f"add {col_name} to cand_params")
             cand_params[col_name] = j[c]
             logger.debug(cand_params)
@@ -495,17 +504,19 @@ def select_candidates(dbh, proto_id, df):
     cand_cnt = 0
 
     # sort by TSI and capture top 10
-    cand_df = df.sort_values('IS: TradeStation Index', ascending=False).head(10)
+    cand_df = df.sort_values("IS: TradeStation Index", ascending=False).head(10)
     if len(cand_df) > 0:
         cand_cnt += capture_params(dbh, proto_id, cand_df)
 
-    #print(f"IS: NP2DD = {df[df['IS: NP2DD']>1][['IS: NP2DD','OOS: NP2DD','IS: Total Trades','IS: Net Profit','IS: Max Intraday Drawdown']]}") 
-    logger.debug(f"IS: NP2DD = {df[(df['IS: NP2DD']>2)&(df['OOS: NP2DD']>1)][['IS: NP2DD','OOS: NP2DD','IS: Total Trades','OOS: Total Trades','IS: Net Profit','IS: Max Intraday Drawdown']]}") 
+    # print(f"IS: NP2DD = {df[df['IS: NP2DD']>1][['IS: NP2DD','OOS: NP2DD','IS: Total Trades','IS: Net Profit','IS: Max Intraday Drawdown']]}")
+    logger.debug(
+        f"IS: NP2DD = {df[(df['IS: NP2DD']>2)&(df['OOS: NP2DD']>1)][['IS: NP2DD','OOS: NP2DD','IS: Total Trades','OOS: Total Trades','IS: Net Profit','IS: Max Intraday Drawdown']]}"
+    )
     # top_q = ['OOS: Avg Trade|90','IS: Avg Trade|90']
     for f_level in (F10, F9, F8, F7, F6, F5, F4, F3, F2, F1):
-        for trade_cnt in (100,90,80,70,60,50,40):
-            for np2dd_x in (5,4,3,2):
-                top_q = ''  #[f"OOS: Avg Trade|{q_level}", f"IS: Avg Trade|{q_level}"]
+        for trade_cnt in (100, 90, 80, 70, 60, 50, 40):
+            for np2dd_x in (5, 4, 3, 2):
+                top_q = ""  # [f"OOS: Avg Trade|{q_level}", f"IS: Avg Trade|{q_level}"]
                 if cand_cnt > 20:
                     logger.debug(
                         f"{top_q}: f_level: {f_level}, trade_cnt: {trade_cnt}: {cand_cnt}"
@@ -519,9 +530,11 @@ def select_candidates(dbh, proto_id, df):
                 ]
                 if len(cand_df) > 0:
                     cand_cnt += capture_params(dbh, proto_id, cand_df, top_q=top_q)
-                logger.debug(f"{top_q}: f_level: {f_level}, trade_cnt: {trade_cnt}: {cand_cnt}")
+                logger.debug(
+                    f"{top_q}: f_level: {f_level}, trade_cnt: {trade_cnt}: {cand_cnt}"
+                )
 
-    '''
+    """
     # top_q = ['OOS: Avg Trade|90']
     for f_level in (F10, F9, F8, F7, F6, F5, F4, F3, F2, F1):
         for trade_cnt in (100, 90, 80, 70, 60,50):
@@ -542,7 +555,7 @@ def select_candidates(dbh, proto_id, df):
                 ]
                 cand_cnt += capture_params(dbh, proto_id, cand_df, top_q=top_q)
                 logger.debug(f"{top_q}: f_level: {f_level}, trade_cnt: {trade_cnt}: {cand_cnt}")
-    '''
+    """
 
     return cand_cnt
 
@@ -569,7 +582,7 @@ def generateCandidateCode(dbh, setup):
     logger.debug(setup)
     pprint.pprint(setup)
 
-    strat = processStrategyTemplate(hdr, desc, setup, logic)
+    strat = processStrategyTemplate(setup["template_version"], hdr, desc, setup, logic)
 
     logger.debug(f"write Candidate to {setup['strategy_file']}")
     open(setup["strategy_file"], "w").write(strat)
@@ -588,14 +601,14 @@ def run_filter(data_dir, archive_dir):
     proto_id, df = prepare_data(dbh, data_dir, archive_dir)
     if not proto_id:
         return proto_id
-    #test_mode = True
+    # test_mode = True
     cnt = select_candidates(dbh, proto_id, df)
     exit()
     # generateCandidateCode(dbh, proto_id)
     return cnt
 
 
-def run_test(cand_id='1725'):
+def run_test(cand_id="1725"):
     dbh = connectDB()
     ##  testing code
     logger.debug(f"*********** cand_id: {cand_id}")
@@ -618,16 +631,16 @@ def run_generate_code():
         return cand_id
 
     ##  testing code
-    #cand_id = '1725'
-    #logger.debug(f"*********** cand_id: {cand_id}")
-    #setup = getCandidateSetup(dbh, cand_id)
-    #logger.debug("************************************************")
-    #logger.debug(setup)
-    #pprint.pprint(setup)
-    #logger.debug("************************************************")
-    #generateCandidateCode(dbh, setup)
-    #logger.debug("************************************************")
-    #exit()
+    # cand_id = '1725'
+    # logger.debug(f"*********** cand_id: {cand_id}")
+    # setup = getCandidateSetup(dbh, cand_id)
+    # logger.debug("************************************************")
+    # logger.debug(setup)
+    # pprint.pprint(setup)
+    # logger.debug("************************************************")
+    # generateCandidateCode(dbh, setup)
+    # logger.debug("************************************************")
+    # exit()
 
     cnt = 0
     while cand_id:
